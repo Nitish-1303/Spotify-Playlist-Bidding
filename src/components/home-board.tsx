@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
-import { BoardRow3D, BoardStage } from "@/components/board-stage";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { BoardStage } from "@/components/board-stage";
+import { LeaderboardCard } from "@/components/leaderboard-card";
 import { filterSpots, useBoard } from "@/lib/board-context";
 import { formatMoney, timeAgo } from "@/lib/format";
 import {
@@ -14,16 +15,17 @@ import { PAYPAL_ME_URL } from "@/lib/site";
 import { parseSpotifyTrackId, spotifyEmbedUrl, spotifyTrackUrl } from "@/lib/spotify";
 import { GENRES, type Genre, type TimeFilter } from "@/lib/types";
 
+const PAGE_SIZE = 20;
+
 function paypalCheckoutUrl(amount: number) {
   const dollars = Math.max(1, Math.round(amount));
   return `${PAYPAL_ME_URL}/${dollars}`;
 }
 
 export function HomeBoard() {
-  const { spots, activity, placeBid, registerClick, listForSale } = useBoard();
+  const { spots, activity, placeBid, registerClick, online } = useBoard();
   const [genre, setGenre] = useState<Genre>("All");
   const [time, setTime] = useState<TimeFilter>("all");
-  const [forSaleOnly, setForSaleOnly] = useState(false);
   const [url, setUrl] = useState("");
   const [bid, setBid] = useState(1);
   const [selectedGenre, setSelectedGenre] = useState<Exclude<Genre, "All">>("Pop");
@@ -32,6 +34,12 @@ export function HomeBoard() {
   const [pending, setPending] = useState<PendingBid | null>(null);
   const [playingId, setPlayingId] = useState<string | null>(null);
   const [ready, setReady] = useState(false);
+  const [page, setPage] = useState(1);
+  const claimFormRef = useRef<HTMLFormElement>(null);
+  const bidInitialized = useRef(false);
+
+  const topBid = spots[0]?.bid ?? 0;
+  const claimDefault = Math.max(1, topBid + 1);
 
   useEffect(() => {
     setReady(true);
@@ -39,14 +47,57 @@ export function HomeBoard() {
     setPending(readPendingBid());
   }, [spots]);
 
+  useEffect(() => {
+    if (!ready || bidInitialized.current) return;
+    setBid(claimDefault);
+    bidInitialized.current = true;
+  }, [ready, claimDefault]);
+
+  useEffect(() => {
+    setPage(1);
+  }, [genre, time]);
+
   const filtered = useMemo(
-    () => filterSpots(spots, genre, time, forSaleOnly),
-    [spots, genre, time, forSaleOnly],
+    () => filterSpots(spots, genre, time),
+    [spots, genre, time],
   );
 
+  const todayTop = useMemo(
+    () => filterSpots(spots, "All", "today").slice(0, 3),
+    [spots],
+  );
+  const weekTop = useMemo(
+    () => filterSpots(spots, "All", "week").slice(0, 3),
+    [spots],
+  );
+
+  const genreTotals = useMemo(() => {
+    const map = new Map<string, number>();
+    for (const g of GENRES) {
+      if (g === "All") continue;
+      map.set(g, 0);
+    }
+    let all = 0;
+    for (const s of spots) {
+      all += s.bid;
+      map.set(s.genre, (map.get(s.genre) ?? 0) + s.bid);
+    }
+    return { all, byGenre: map };
+  }, [spots]);
+
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  const pageSpots = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
   const topThree = spots.slice(0, 3);
-  const listedCount = spots.filter((s) => s.askingPrice).length;
-  const topBid = spots[0]?.bid ?? 0;
+  const totalClicks = spots.reduce((sum, s) => sum + s.clicks, 0);
+
+  function scrollToClaim() {
+    claimFormRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+  }
+
+  function claimRank(amount: number) {
+    setBid(Math.max(1, amount));
+    scrollToClaim();
+  }
 
   function confirmPaidBid() {
     const draft = pending ?? readPendingBid();
@@ -112,10 +163,159 @@ export function HomeBoard() {
 
   return (
     <main className="mx-auto max-w-6xl px-4 pb-12 sm:px-6">
-      {/* Top 3 — 3D motion podium */}
-      <section className="py-6" aria-labelledby="top-board-heading">
+      {/* Time tabs */}
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-white/8 py-3">
+        <div className="flex gap-1 text-sm">
+          {(
+            [
+              ["all", "All-time"],
+              ["today", "Today"],
+              ["week", "Week"],
+            ] as const
+          ).map(([key, label]) => (
+            <button
+              key={key}
+              type="button"
+              onClick={() => setTime(key)}
+              className={`rounded-full px-3 py-1.5 font-medium ${
+                time === key
+                  ? "bg-[#242424] text-white"
+                  : "text-[#a7a7a7] hover:text-white"
+              }`}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+        <p className="text-xs text-[#a7a7a7] sm:hidden">
+          {online} online · {totalClicks} clicks
+        </p>
+      </div>
+
+      {/* Claim #1 bar */}
+      <section className="claim-bar mt-5" aria-labelledby="claim-heading">
+        <div className="flex flex-wrap items-center justify-between gap-4">
+          <div>
+            <h2 id="claim-heading" className="text-sm font-medium text-[#a7a7a7]">
+              Claim #1 for
+            </h2>
+            <div className="mt-2 flex items-center gap-3">
+              <button
+                type="button"
+                className="claim-step"
+                onClick={() => setBid((n) => Math.max(1, n - 1))}
+                aria-label="Decrease bid"
+              >
+                −
+              </button>
+              <span className="min-w-16 text-center text-3xl font-bold tabular-nums tracking-tight">
+                {formatMoney(bid)}
+              </span>
+              <button
+                type="button"
+                className="claim-step"
+                onClick={() => setBid((n) => n + 1)}
+                aria-label="Increase bid"
+              >
+                +
+              </button>
+            </div>
+          </div>
+          <p className="max-w-md text-xs leading-relaxed text-[#a7a7a7]">
+            New spots start at $1. Paying less than the #1 price still puts you on
+            the board at whatever place that bid can take.
+          </p>
+        </div>
+      </section>
+
+      {/* Pending PayPal */}
+      {pending && (
+        <div className="card mt-4 flex flex-col gap-3 border-(--accent)/35 p-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="min-w-0">
+            <p className="text-sm font-semibold text-(--accent)">Waiting for PayPal</p>
+            <p className="mt-1 truncate text-sm text-[#b3b3b3]">
+              {pending.title} · {formatMoney(pending.bid)} — after you pay, confirm below.
+            </p>
+          </div>
+          <div className="flex shrink-0 flex-wrap gap-2">
+            <a
+              href={paypalCheckoutUrl(pending.bid)}
+              className="rounded-full bg-[#242424] px-4 py-2 text-sm font-medium hover:bg-[#2a2a2a]"
+            >
+              Open PayPal again
+            </a>
+            <button
+              type="button"
+              className="primary-btn px-4 py-2 text-sm"
+              onClick={confirmPaidBid}
+            >
+              I paid — put me on the board
+            </button>
+            <button
+              type="button"
+              className="px-3 py-2 text-xs text-[#a7a7a7] hover:text-white"
+              onClick={() => {
+                clearPendingBid();
+                setPending(null);
+              }}
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Submit row */}
+      <form
+        id="claim"
+        ref={claimFormRef}
+        onSubmit={onBid}
+        className="card mt-4 grid gap-3 p-4 sm:grid-cols-[1fr_auto_auto] sm:items-end sm:p-5"
+      >
+        <div className="min-w-0">
+          <label className="label">Your Spotify track URL</label>
+          <input
+            value={url}
+            onChange={(e) => setUrl(e.target.value)}
+            placeholder="https://open.spotify.com/track/…"
+            className="field"
+          />
+        </div>
+        <div>
+          <label className="label">Choose a category</label>
+          <select
+            value={selectedGenre}
+            onChange={(e) =>
+              setSelectedGenre(e.target.value as Exclude<Genre, "All">)
+            }
+            className="field min-w-40"
+          >
+            {GENRES.filter((g) => g !== "All").map((g) => (
+              <option key={g} value={g}>
+                {g}
+              </option>
+            ))}
+          </select>
+        </div>
+        <button className="primary-btn h-11 px-6 text-sm" disabled={busy}>
+          {busy ? "Redirecting…" : `Outbid ${formatMoney(bid)}`}
+        </button>
+        <p className="text-xs text-[#a7a7a7] sm:col-span-3">
+          Pay on PayPal, then return and tap{" "}
+          <span className="text-[#b3b3b3]">I paid — put me on the board</span>. Same
+          link again raises your existing bid.
+        </p>
+        {status && (
+          <p className="rounded-lg bg-[#242424] px-3 py-2 text-sm text-[#b3b3b3] sm:col-span-3">
+            {status}
+          </p>
+        )}
+      </form>
+
+      {/* 3D podium */}
+      <section className="py-8" aria-labelledby="top-board-heading">
         <div className="mb-2 flex items-end justify-between gap-3">
-          <h2 id="top-board-heading" className="text-2xl font-bold tracking-tight sm:text-3xl">
+          <h2 id="top-board-heading" className="text-2xl font-bold tracking-tight">
             Top of the board
           </h2>
           <p className="hidden text-xs text-[#a7a7a7] sm:block">
@@ -130,123 +330,9 @@ export function HomeBoard() {
         />
       </section>
 
-      {/* 3. Bid form */}
-      <section className="mb-10">
-        {pending && (
-          <div className="card mb-4 flex flex-col gap-3 border-(--accent)/35 p-4 sm:flex-row sm:items-center sm:justify-between">
-            <div className="min-w-0">
-              <p className="text-sm font-semibold text-(--accent)">Waiting for PayPal</p>
-              <p className="mt-1 truncate text-sm text-[#b3b3b3]">
-                {pending.title} · {formatMoney(pending.bid)} — after you pay, confirm below.
-              </p>
-            </div>
-            <div className="flex shrink-0 flex-wrap gap-2">
-              <a
-                href={paypalCheckoutUrl(pending.bid)}
-                className="rounded-full bg-[#242424] px-4 py-2 text-sm font-medium hover:bg-[#2a2a2a]"
-              >
-                Open PayPal again
-              </a>
-              <button
-                type="button"
-                className="primary-btn px-4 py-2 text-sm"
-                onClick={confirmPaidBid}
-              >
-                I paid — put me on the board
-              </button>
-              <button
-                type="button"
-                className="px-3 py-2 text-xs text-[#a7a7a7] hover:text-white"
-                onClick={() => {
-                  clearPendingBid();
-                  setPending(null);
-                }}
-              >
-                Cancel
-              </button>
-            </div>
-          </div>
-        )}
-
-        <form onSubmit={onBid} className="card p-5 sm:p-6">
-          <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
-            <h2 className="text-lg font-bold">Place a bid</h2>
-            <span className="text-xs text-[#a7a7a7]">
-              #1 is {formatMoney(topBid)} · Pay with PayPal
-            </span>
-          </div>
-
-          <div className="grid gap-4 lg:grid-cols-[1fr_auto_auto_auto] lg:items-end">
-            <div className="min-w-0">
-              <label className="label">Song link</label>
-              <input
-                value={url}
-                onChange={(e) => setUrl(e.target.value)}
-                placeholder="https://open.spotify.com/track/…"
-                className="field"
-              />
-            </div>
-            <div>
-              <label className="label">Bid</label>
-              <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  className="flex h-11 w-11 items-center justify-center rounded-full bg-[#242424] text-lg hover:bg-[#2a2a2a]"
-                  onClick={() => setBid((n) => Math.max(1, n - 1))}
-                  aria-label="Decrease bid"
-                >
-                  −
-                </button>
-                <span className="min-w-14 text-center text-xl font-bold tabular-nums">
-                  {formatMoney(bid)}
-                </span>
-                <button
-                  type="button"
-                  className="flex h-11 w-11 items-center justify-center rounded-full bg-[#242424] text-lg hover:bg-[#2a2a2a]"
-                  onClick={() => setBid((n) => n + 1)}
-                  aria-label="Increase bid"
-                >
-                  +
-                </button>
-              </div>
-            </div>
-            <div>
-              <label className="label">Genre</label>
-              <select
-                value={selectedGenre}
-                onChange={(e) =>
-                  setSelectedGenre(e.target.value as Exclude<Genre, "All">)
-                }
-                className="field min-w-32"
-              >
-                {GENRES.filter((g) => g !== "All").map((g) => (
-                  <option key={g} value={g}>
-                    {g}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <button className="primary-btn h-11 px-6 text-sm" disabled={busy}>
-              {busy ? "Redirecting…" : `Pay ${formatMoney(bid)} on PayPal`}
-            </button>
-          </div>
-
-          <p className="mt-3 text-xs text-[#a7a7a7]">
-            You’ll pay on PayPal, then return here and tap{" "}
-            <span className="text-[#b3b3b3]">I paid — put me on the board</span>. Same
-            link again raises your existing bid.
-          </p>
-          {status && (
-            <p className="mt-3 rounded-lg bg-[#242424] px-3 py-2 text-sm text-[#b3b3b3]">
-              {status}
-            </p>
-          )}
-        </form>
-      </section>
-
-      {/* 4. Now playing */}
+      {/* Now playing */}
       {playingId && (
-        <section className="mb-10">
+        <section className="mb-8">
           <div className="mb-2 flex items-center justify-between">
             <h2 className="text-sm font-bold">Now playing</h2>
             <span className="text-xs text-[#a7a7a7]">Official Spotify player</span>
@@ -263,91 +349,117 @@ export function HomeBoard() {
         </section>
       )}
 
-      {/* 5. Full leaderboard */}
-      <section id="board">
-        <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
-          <div>
-            <h2 className="text-xl font-bold">Leaderboard</h2>
-            <p className="mt-1 text-sm text-[#a7a7a7]">
-              {filtered.length} of {spots.length} songs
-            </p>
-          </div>
-          <div className="flex flex-wrap gap-1 text-sm">
-            {(
-              [
-                ["all", "All time"],
-                ["today", "Today"],
-                ["yesterday", "Yesterday"],
-                ["month", "This month"],
-              ] as const
-            ).map(([key, label]) => (
+      {/* Board grid */}
+      <section className="board-grid">
+        {/* Categories */}
+        <aside id="categories" className="cat-rail">
+          <h2 className="mb-3 text-sm font-bold">Categories</h2>
+          <ul className="space-y-1">
+            <li>
               <button
-                key={key}
                 type="button"
-                onClick={() => setTime(key)}
-                className={`rounded-full px-3 py-1 ${
-                  time === key ? "bg-[#242424] text-white" : "text-[#a7a7a7] hover:text-white"
-                }`}
+                onClick={() => setGenre("All")}
+                className={`cat-item ${genre === "All" ? "cat-item-active" : ""}`}
               >
-                {label}
+                <span>All</span>
+                <span className="tabular-nums text-[#a7a7a7]">
+                  {formatMoney(genreTotals.all)}
+                </span>
               </button>
-            ))}
-          </div>
-        </div>
+            </li>
+            {[...genreTotals.byGenre.entries()]
+              .sort((a, b) => b[1] - a[1])
+              .map(([g, total]) => (
+                <li key={g}>
+                  <button
+                    type="button"
+                    onClick={() => setGenre(g as Genre)}
+                    className={`cat-item ${genre === g ? "cat-item-active" : ""}`}
+                  >
+                    <span className="truncate">{g}</span>
+                    <span className="shrink-0 tabular-nums text-[#a7a7a7]">
+                      {formatMoney(total)}
+                    </span>
+                  </button>
+                </li>
+              ))}
+          </ul>
+        </aside>
 
-        <div className="mb-5 flex flex-wrap gap-2">
-          {GENRES.map((g) => (
-            <button
-              key={g}
-              type="button"
-              onClick={() => setGenre(g)}
-              className={`chip ${genre === g ? "chip-active" : ""}`}
-            >
-              {g}
-            </button>
-          ))}
-          {listedCount > 0 && (
-            <button
-              type="button"
-              onClick={() => setForSaleOnly((v) => !v)}
-              className={`chip ${forSaleOnly ? "chip-active" : ""}`}
-            >
-              For sale · {listedCount}
-            </button>
+        {/* Ranked list */}
+        <div id="board">
+          <div className="mb-4 flex flex-wrap items-end justify-between gap-2">
+            <div>
+              <h2 className="text-xl font-bold">Leaderboard</h2>
+              <p className="mt-1 text-sm text-[#a7a7a7]">
+                {filtered.length} of {spots.length} songs
+                {genre !== "All" ? ` · ${genre}` : ""}
+              </p>
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            {pageSpots.map((spot, index) => {
+              const rank = (page - 1) * PAGE_SIZE + index + 1;
+              return (
+                <LeaderboardCard
+                  key={spot.id}
+                  spot={spot}
+                  rank={rank}
+                  ready={ready}
+                  onPlay={() => setPlayingId(spot.trackId)}
+                  onOpen={() => registerClick(spot.id)}
+                  onClaim={() => claimRank(spot.bid + 1)}
+                />
+              );
+            })}
+            {filtered.length === 0 && (
+              <div className="card px-4 py-10 text-center text-sm text-[#a7a7a7]">
+                No songs match these filters.
+              </div>
+            )}
+          </div>
+
+          {totalPages > 1 && (
+            <div className="mt-5 flex items-center justify-between gap-3 text-sm">
+              <button
+                type="button"
+                className="rounded-full bg-[#242424] px-4 py-2 disabled:opacity-40"
+                disabled={page <= 1}
+                onClick={() => setPage((p) => Math.max(1, p - 1))}
+              >
+                ← Prev
+              </button>
+              <span className="text-[#a7a7a7]">
+                Page {page} / {totalPages}
+                <span className="mx-1.5 text-white/20">·</span>
+                {(page - 1) * PAGE_SIZE + 1}–
+                {Math.min(page * PAGE_SIZE, filtered.length)} of {filtered.length}
+              </span>
+              <button
+                type="button"
+                className="rounded-full bg-[#242424] px-4 py-2 disabled:opacity-40"
+                disabled={page >= totalPages}
+                onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+              >
+                Next →
+              </button>
+            </div>
           )}
         </div>
 
-        <div className="grid gap-6 lg:grid-cols-[1fr_240px]">
-          <ol className="board-list-3d">
-            {filtered.map((spot, index) => (
-              <BoardRow3D
-                key={spot.id}
-                spot={spot}
-                rank={index + 1}
-                ready={ready}
-                index={index}
-                onPlay={() => setPlayingId(spot.trackId)}
-                onOpen={() => registerClick(spot.id)}
-                onList={() => {
-                  const next = window.prompt(
-                    "Asking price to list this board spot (this site only)",
-                    String(spot.askingPrice ?? spot.bid * 3),
-                  );
-                  if (!next) return;
-                  const n = Number(next);
-                  if (Number.isFinite(n) && n > 0) listForSale(spot.trackId, n);
-                }}
-              />
-            ))}
-            {filtered.length === 0 && (
-              <li className="card px-4 py-10 text-center text-sm text-[#a7a7a7]">
-                No songs match these filters.
-              </li>
-            )}
-          </ol>
-
-          <aside className="card h-fit p-4">
-            <h2 className="mb-3 text-sm font-bold">Recent bids</h2>
+        {/* Sidebar */}
+        <aside className="board-side">
+          <div className="card p-4">
+            <h2 className="mb-3 text-sm font-bold">Today&apos;s top ranking</h2>
+            <SideRankList spots={todayTop} ready={ready} empty="No bids today yet." />
+          </div>
+          <div className="card p-4">
+            <h2 className="mb-3 text-sm font-bold">Week&apos;s top ranking</h2>
+            <SideRankList spots={weekTop} ready={ready} empty="No bids this week yet." />
+          </div>
+          <div className="card p-4">
+            <h2 className="mb-3 text-sm font-bold">Latest activity</h2>
             <ul>
               {activity.slice(0, 8).map((item) => (
                 <li
@@ -362,9 +474,43 @@ export function HomeBoard() {
                 </li>
               ))}
             </ul>
-          </aside>
-        </div>
+          </div>
+        </aside>
       </section>
     </main>
+  );
+}
+
+function SideRankList({
+  spots,
+  ready,
+  empty,
+}: {
+  spots: { id: string; title: string; bid: number; raisedAt: number }[];
+  ready: boolean;
+  empty: string;
+}) {
+  if (spots.length === 0) {
+    return <p className="text-xs text-[#a7a7a7]">{empty}</p>;
+  }
+  return (
+    <ol className="space-y-2.5">
+      {spots.map((s, i) => (
+        <li key={s.id} className="flex items-start justify-between gap-2">
+          <div className="min-w-0">
+            <p className="truncate text-sm font-medium">
+              <span className="mr-1.5 text-[#a7a7a7]">#{i + 1}</span>
+              {s.title}
+            </p>
+            {ready && (
+              <p className="mt-0.5 text-xs text-[#a7a7a7]">{timeAgo(s.raisedAt)}</p>
+            )}
+          </div>
+          <span className="shrink-0 text-sm font-bold tabular-nums text-(--accent)">
+            {formatMoney(s.bid)}
+          </span>
+        </li>
+      ))}
+    </ol>
   );
 }

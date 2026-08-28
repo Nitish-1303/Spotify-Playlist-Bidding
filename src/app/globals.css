@@ -375,3 +375,145 @@ select {
     opacity: 0.25;
   }
 }
+
+/* —— Outbids-style claim / board layout —— */
+.claim-bar {
+  padding: 1.25rem 1.35rem;
+  border-radius: 14px;
+  border: 1px solid var(--line);
+  background: linear-gradient(135deg, rgba(45, 212, 191, 0.1), rgba(255, 255, 255, 0.02));
+}
+
+.claim-step {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.5rem;
+  height: 2.5rem;
+  border-radius: 999px;
+  border: 0;
+  background: #242424;
+  color: var(--text);
+  font-size: 1.25rem;
+  cursor: pointer;
+}
+
+.claim-step:hover {
+  background: #2a2a2a;
+}
+
+.board-grid {
+  display: grid;
+  gap: 1.5rem;
+}
+
+@media (min-width: 1024px) {
+  .board-grid {
+    grid-template-columns: 200px minmax(0, 1fr) 220px;
+    align-items: start;
+  }
+}
+
+.cat-rail {
+  border-radius: 12px;
+  border: 1px solid var(--line);
+  background: var(--panel);
+  padding: 1rem;
+}
+
+.cat-item {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--text);
+  padding: 0.45rem 0.55rem;
+  font-size: 0.8125rem;
+  text-align: left;
+  cursor: pointer;
+}
+
+.cat-item:hover {
+  background: #242424;
+}
+
+.cat-item-active {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+.cat-item-active span:last-child {
+  color: var(--accent);
+}
+
+.board-side {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+}
+
+.lb-card {
+  border-radius: 12px;
+  border: 1px solid var(--line);
+  background: var(--panel);
+  padding: 0.85rem 1rem;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+
+.lb-card:hover {
+  border-color: rgba(45, 212, 191, 0.28);
+  background: #1a1a1a;
+}
+
+.lb-card-main {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.85rem;
+}
+
+.lb-card-cover {
+  height: 3.25rem;
+  width: 3.25rem;
+  flex-shrink: 0;
+  overflow: hidden;
+  border-radius: 8px;
+  background: #242424;
+}
+
+.lb-card-bid {
+  margin-left: auto;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.35rem;
+}
+
+.lb-claim-btn {
+  border: 0;
+  background: transparent;
+  color: #a7a7a7;
+  font-size: 0.75rem;
+  font-weight: 500;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.lb-claim-btn:hover {
+  color: var(--accent);
+}
+
+@media (max-width: 639px) {
+  .lb-card-bid {
+    width: 100%;
+    margin-left: 0;
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    padding-left: 2.35rem;
+  }
+}

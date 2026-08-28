@@ -166,23 +166,16 @@ export function filterSpots(
   spots: Spot[],
   genre: string,
   time: TimeFilter,
-  forSaleOnly: boolean,
+  forSaleOnly = false,
 ) {
   const startToday = startOfDay();
-  const startYesterday = startToday - 86400000;
-  const startMonth = Date.now() - 30 * 86400000;
+  const startWeek = Date.now() - 7 * 86400000;
 
   return spots.filter((s) => {
     if (genre !== "All" && s.genre !== genre) return false;
     if (forSaleOnly && !s.askingPrice) return false;
     if (time === "today" && s.raisedAt < startToday) return false;
-    if (
-      time === "yesterday" &&
-      (s.raisedAt < startYesterday || s.raisedAt >= startToday)
-    ) {
-      return false;
-    }
-    if (time === "month" && s.raisedAt < startMonth) return false;
+    if (time === "week" && s.raisedAt < startWeek) return false;
     return true;
   });
 }

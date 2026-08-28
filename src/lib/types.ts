@@ -16,7 +16,7 @@ export const GENRES = [
 
 export type Genre = (typeof GENRES)[number];
 export type GenreFilter = Genre;
-export type TimeFilter = "all" | "today" | "yesterday" | "month";
+export type TimeFilter = "all" | "today" | "week";
 
 export type Spot = {
   id: string;

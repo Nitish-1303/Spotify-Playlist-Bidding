@@ -3,27 +3,38 @@
 import Link from "next/link";
 import { Logo } from "@/components/logo";
 import { useBoard } from "@/lib/board-context";
-import { formatMoney } from "@/lib/format";
 
 export function SiteHeader() {
-  const { spots } = useBoard();
-  const totalValue = spots.reduce((sum, s) => sum + s.bid, 0);
+  const { spots, online } = useBoard();
+  const totalClicks = spots.reduce((sum, s) => sum + s.clicks, 0);
 
   return (
-    <header className="sticky top-0 z-20 border-b border-white/8 bg-[#121212]/95 backdrop-blur-md">
-      <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 py-3 sm:px-6">
-        <Logo />
-        <nav className="flex items-center gap-4 text-sm text-[#b3b3b3]">
-          <Link href="/#board" className="hover:text-white">
-            Board
-          </Link>
-          <Link href="/rules" className="hover:text-white">
-            Rules
-          </Link>
-          <span className="hidden text-[#a7a7a7] sm:inline">
-            {spots.length} songs · {formatMoney(totalValue)}
-          </span>
-        </nav>
+    <header className="sticky top-0 z-30 border-b border-white/8 bg-[#121212]/95 backdrop-blur-md">
+      <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-3 px-4 py-3 sm:px-6">
+        <div className="flex min-w-0 flex-wrap items-center gap-4 sm:gap-6">
+          <Logo />
+          <nav className="flex flex-wrap items-center gap-3 text-sm text-[#b3b3b3] sm:gap-4">
+            <Link href="/#board" className="hover:text-white">
+              Leaderboard
+            </Link>
+            <Link href="/#categories" className="hover:text-white">
+              Categories
+            </Link>
+            <Link href="/#about" className="hover:text-white">
+              About
+            </Link>
+            <Link href="/rules" className="hover:text-white">
+              Rules
+            </Link>
+          </nav>
+        </div>
+        <p className="text-xs text-[#a7a7a7] sm:text-sm">
+          <span className="text-white">{online}</span> online
+          <span className="mx-1.5 text-white/20">·</span>
+          <span className="text-white">{totalClicks.toLocaleString()}</span> clicks
+          <span className="mx-1.5 text-white/20">·</span>
+          <span className="text-(--accent)">live board</span>
+        </p>
       </div>
     </header>
   );
@@ -31,11 +42,14 @@ export function SiteHeader() {
 
 export function SiteFooter() {
   return (
-    <footer className="mt-20 border-t border-white/8">
+    <footer className="mt-16 border-t border-white/8">
       <div className="mx-auto max-w-6xl space-y-4 px-4 py-8 sm:px-6">
         <div className="flex flex-wrap items-center justify-between gap-4">
           <Logo size="sm" />
-          <div className="flex gap-5 text-sm text-[#a7a7a7]">
+          <div className="flex flex-wrap gap-5 text-sm text-[#a7a7a7]">
+            <Link href="/#board" className="hover:text-white">
+              Leaderboard
+            </Link>
             <Link href="/rules" className="hover:text-white">
               Rules
             </Link>
