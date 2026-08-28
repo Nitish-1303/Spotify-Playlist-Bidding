@@ -124,15 +124,12 @@ export function HomeBoard() {
   }
 
   return (
-    <main className="mx-auto max-w-6xl px-4 pb-20 sm:px-6">
-      {/* 1. Short strip */}
-      <p className="border-b border-white/8 py-3 text-sm text-[#a7a7a7]">
-        Independent song board · Highest bid ranks #1 here · Not affiliated with Spotify
-      </p>
-
-      {/* 2. Top 3 */}
-      <section className="py-8">
-        <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">Top of the board</h1>
+    <main className="mx-auto max-w-6xl px-4 pb-12 sm:px-6">
+      {/* Top 3 */}
+      <section className="py-8" aria-labelledby="top-board-heading">
+        <h2 id="top-board-heading" className="text-2xl font-bold tracking-tight sm:text-3xl">
+          Top of the board
+        </h2>
         <div className="mt-5 grid gap-3 sm:grid-cols-3">
           {topThree.map((spot, index) => (
             <TopCard

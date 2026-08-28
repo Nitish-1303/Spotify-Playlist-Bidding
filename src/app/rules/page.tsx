@@ -1,5 +1,13 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { SiteFooter, SiteHeader } from "@/components/chrome";
+
+export const metadata: Metadata = {
+  title: "Rules for song bidding",
+  description:
+    "How PlaylistBid song bidding works: track links only, $1 minimum bids, official Spotify player previews, and ranks on this site only — not on Spotify.",
+  alternates: { canonical: "/rules" },
+};
 
 export default function RulesPage() {
   return (

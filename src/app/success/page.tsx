@@ -11,6 +11,8 @@ import {
 } from "@/lib/pending-bid";
 import { spotifyTrackUrl } from "@/lib/spotify";
 
+// Success is transactional; keep it out of search indexes via robots.ts disallow.
+
 export default function SuccessPage() {
   const { placeBid } = useBoard();
   const [message, setMessage] = useState("Confirming your bid…");
