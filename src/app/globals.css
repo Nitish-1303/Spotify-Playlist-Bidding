@@ -153,45 +153,47 @@ select {
   pointer-events: none;
   position: absolute;
   inset: 0;
+  z-index: 0;
+  overflow: hidden;
 }
 
 .board-stage-orb {
   position: absolute;
   border-radius: 999px;
-  filter: blur(48px);
-  opacity: 0.55;
+  filter: blur(56px);
+  opacity: 0.35;
   animation: orb-drift 10s ease-in-out infinite;
 }
 
 .board-stage-orb-a {
-  width: 220px;
-  height: 220px;
-  left: 8%;
-  top: 10%;
-  background: rgba(45, 212, 191, 0.28);
+  width: 180px;
+  height: 180px;
+  left: 4%;
+  top: 18%;
+  background: rgba(45, 212, 191, 0.22);
 }
 
 .board-stage-orb-b {
-  width: 260px;
-  height: 260px;
-  right: 6%;
-  top: 20%;
-  background: rgba(99, 102, 241, 0.22);
+  width: 200px;
+  height: 200px;
+  right: 2%;
+  top: 28%;
+  background: rgba(99, 102, 241, 0.16);
   animation-delay: -4s;
 }
 
 .board-stage-floor {
   position: absolute;
-  left: 8%;
-  right: 8%;
-  bottom: 8%;
-  height: 42%;
+  left: 10%;
+  right: 10%;
+  bottom: 6%;
+  height: 36%;
   background: radial-gradient(
     ellipse at center,
-    rgba(45, 212, 191, 0.16),
-    transparent 68%
+    rgba(45, 212, 191, 0.12),
+    transparent 70%
   );
-  transform: rotateX(68deg) scale(1.1);
+  transform: rotateX(68deg) scale(1.05);
   transform-origin: center bottom;
 }
 
