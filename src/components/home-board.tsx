@@ -1,14 +1,13 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { BoardRow3D, BoardStage } from "@/components/board-stage";
 import { filterSpots, useBoard } from "@/lib/board-context";
 import { useDodoCheckout } from "@/lib/dodo-checkout";
 import { formatMoney, timeAgo } from "@/lib/format";
-import { CoverArt } from "@/components/cover-art";
 import { savePendingBid } from "@/lib/pending-bid";
 import { parseSpotifyTrackId, spotifyEmbedUrl, spotifyTrackUrl } from "@/lib/spotify";
 import { GENRES, type Genre, type TimeFilter } from "@/lib/types";
-import type { Spot } from "@/lib/types";
 
 export function HomeBoard() {
   const { spots, activity, placeBid, registerClick, listForSale } = useBoard();
@@ -125,26 +124,22 @@ export function HomeBoard() {
 
   return (
     <main className="mx-auto max-w-6xl px-4 pb-12 sm:px-6">
-      {/* Top 3 */}
-      <section className="py-8" aria-labelledby="top-board-heading">
-        <h2 id="top-board-heading" className="text-2xl font-bold tracking-tight sm:text-3xl">
-          Top of the board
-        </h2>
-        <div className="mt-5 grid gap-3 sm:grid-cols-3">
-          {topThree.map((spot, index) => (
-            <TopCard
-              key={spot.id}
-              spot={spot}
-              rank={index + 1}
-              ready={ready}
-              onPlay={() => setPlayingId(spot.trackId)}
-              onOpen={() => registerClick(spot.id)}
-            />
-          ))}
-          {topThree.length === 0 && (
-            <p className="text-sm text-[#a7a7a7] sm:col-span-3">No songs yet. Place the first bid.</p>
-          )}
+      {/* Top 3 — 3D motion podium */}
+      <section className="py-6" aria-labelledby="top-board-heading">
+        <div className="mb-2 flex items-end justify-between gap-3">
+          <h2 id="top-board-heading" className="text-2xl font-bold tracking-tight sm:text-3xl">
+            Top of the board
+          </h2>
+          <p className="hidden text-xs text-[#a7a7a7] sm:block">
+            Drag your cursor over cards for 3D tilt
+          </p>
         </div>
+        <BoardStage
+          topThree={topThree}
+          ready={ready}
+          onPlay={(trackId) => setPlayingId(trackId)}
+          onOpen={(id) => registerClick(id)}
+        />
       </section>
 
       {/* 3. Bid form */}
@@ -313,73 +308,27 @@ export function HomeBoard() {
         </div>
 
         <div className="grid gap-6 lg:grid-cols-[1fr_240px]">
-          <ol className="space-y-1">
-            {filtered.map((spot, index) => {
-              const rank = index + 1;
-              return (
-                <li
-                  key={spot.id}
-                  className="flex items-center gap-3 rounded-lg px-2 py-2 transition hover:bg-[#181818] sm:gap-4 sm:px-3"
-                >
-                  <span className={`rank-badge ${rank === 1 ? "rank-badge-top" : ""}`}>
-                    {rank}
-                  </span>
-                  <button
-                    type="button"
-                    onClick={() => setPlayingId(spot.trackId)}
-                    className="h-12 w-12 shrink-0 overflow-hidden rounded bg-[#242424]"
-                    aria-label={`Preview ${spot.title}`}
-                  >
-                    <CoverArt
-                      trackId={spot.trackId}
-                      src={spot.thumbnailUrl}
-                      alt=""
-                      className="h-full w-full object-cover"
-                    />
-                  </button>
-                  <div className="min-w-0 flex-1">
-                    <a
-                      href={spot.trackUrl}
-                      target="_blank"
-                      rel="noreferrer"
-                      onClick={() => registerClick(spot.id)}
-                      className="block truncate font-medium hover:underline"
-                    >
-                      {spot.title}
-                    </a>
-                    <p className="truncate text-sm text-[#a7a7a7]">
-                      {spot.artist}
-                      <span className="mx-1.5 text-white/20">·</span>
-                      {spot.genre}
-                      {ready ? (
-                        <>
-                          <span className="mx-1.5 text-white/20">·</span>
-                          {timeAgo(spot.raisedAt)}
-                        </>
-                      ) : null}
-                    </p>
-                  </div>
-                  <div className="shrink-0 text-right">
-                    <div className="font-bold tabular-nums">{formatMoney(spot.bid)}</div>
-                    <button
-                      type="button"
-                      className="text-xs text-[#a7a7a7] hover:text-(--accent)"
-                      onClick={() => {
-                        const next = window.prompt(
-                          "Asking price to list this board spot (this site only)",
-                          String(spot.askingPrice ?? spot.bid * 3),
-                        );
-                        if (!next) return;
-                        const n = Number(next);
-                        if (Number.isFinite(n) && n > 0) listForSale(spot.trackId, n);
-                      }}
-                    >
-                      {spot.askingPrice ? `Ask ${formatMoney(spot.askingPrice)}` : "List"}
-                    </button>
-                  </div>
-                </li>
-              );
-            })}
+          <ol className="board-list-3d">
+            {filtered.map((spot, index) => (
+              <BoardRow3D
+                key={spot.id}
+                spot={spot}
+                rank={index + 1}
+                ready={ready}
+                index={index}
+                onPlay={() => setPlayingId(spot.trackId)}
+                onOpen={() => registerClick(spot.id)}
+                onList={() => {
+                  const next = window.prompt(
+                    "Asking price to list this board spot (this site only)",
+                    String(spot.askingPrice ?? spot.bid * 3),
+                  );
+                  if (!next) return;
+                  const n = Number(next);
+                  if (Number.isFinite(n) && n > 0) listForSale(spot.trackId, n);
+                }}
+              />
+            ))}
             {filtered.length === 0 && (
               <li className="card px-4 py-10 text-center text-sm text-[#a7a7a7]">
                 No songs match these filters.
@@ -407,56 +356,5 @@ export function HomeBoard() {
         </div>
       </section>
     </main>
-  );
-}
-
-function TopCard({
-  spot,
-  rank,
-  ready,
-  onPlay,
-  onOpen,
-}: {
-  spot: Spot;
-  rank: number;
-  ready: boolean;
-  onPlay: () => void;
-  onOpen: () => void;
-}) {
-  return (
-    <article className="card flex gap-3 p-3">
-      <button
-        type="button"
-        onClick={onPlay}
-        className="h-16 w-16 shrink-0 overflow-hidden rounded bg-[#242424]"
-        aria-label={`Preview ${spot.title}`}
-      >
-        <CoverArt
-          trackId={spot.trackId}
-          src={spot.thumbnailUrl}
-          alt=""
-          className="h-full w-full object-cover"
-        />
-      </button>
-      <div className="min-w-0 flex-1">
-        <div className="mb-1 flex items-center gap-2">
-          <span className={`rank-badge ${rank === 1 ? "rank-badge-top" : ""}`}>{rank}</span>
-          <span className="text-sm font-bold tabular-nums">{formatMoney(spot.bid)}</span>
-        </div>
-        <a
-          href={spot.trackUrl}
-          target="_blank"
-          rel="noreferrer"
-          onClick={onOpen}
-          className="block truncate font-medium hover:underline"
-        >
-          {spot.title}
-        </a>
-        <p className="truncate text-sm text-[#a7a7a7]">
-          {spot.artist}
-          {ready ? ` · ${timeAgo(spot.raisedAt)}` : ""}
-        </p>
-      </div>
-    </article>
   );
 }
