@@ -9,8 +9,8 @@ const RULES = [
     body: "New songs start at $1. Higher bids rank above lower bids. Equal bids keep the earlier position.",
   },
   {
-    title: "PayPal confirmation puts you on the board.",
-    body: "After paying on PayPal, return here and tap “I paid — put me on the board” to publish your spot.",
+    title: "PayPal or UPI confirmation puts you on the board.",
+    body: "Pay internationally with PayPal or in India with UPI, then return here and tap “I paid — put me on the board” to publish your spot.",
   },
   {
     title: "Same link raises your total.",
@@ -95,8 +95,8 @@ export default function Page() {
         <div className="mt-5 max-w-3xl space-y-4 text-sm leading-relaxed text-[#b3b3b3]">
           <p>
             Fans compete with money, not an opaque feed. Paste a public Spotify
-            track, pay your bid on PayPal, and claim a visible rank on this
-            independent music billboard.
+            track, pay your bid on PayPal (international) or UPI (India), and claim
+            a visible rank on this independent music billboard.
           </p>
           <p>
             We fetch public metadata automatically, show bid amounts and clicks,

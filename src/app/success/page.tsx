@@ -22,7 +22,7 @@ export default function SuccessPage() {
     const pending = readPendingBid();
     if (!pending) {
       setMessage(
-        "No pending bid found. If you already paid on PayPal, go back home, place the same bid again, or tap Support with your receipt.",
+        "No pending bid found. If you already paid on PayPal or UPI, go back home, place the same bid again, or tap Support with your receipt.",
       );
       return;
     }
@@ -57,7 +57,7 @@ export default function SuccessPage() {
             {ok ? "✓" : "…"}
           </div>
           <p className="mt-5 text-sm font-medium text-[var(--accent)]">
-            {ok ? "PayPal confirmed" : "PlaylistBid"}
+            {ok ? "Payment confirmed" : "PlaylistBid"}
           </p>
           <h1 className="mt-2 text-2xl font-bold tracking-tight">
             {ok ? "You’re on the board" : "Almost there"}

@@ -1,3 +1,5 @@
+import type { PaymentMethod } from "@/lib/payments";
+
 export type PendingBid = {
   trackId: string;
   trackUrl: string;
@@ -7,6 +9,7 @@ export type PendingBid = {
   genre: string;
   bid: number;
   askingPrice?: number;
+  method?: PaymentMethod;
 };
 
 const PENDING_KEY = "playlistbid-pending-bid";

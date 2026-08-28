@@ -6,21 +6,22 @@ import { LeaderboardCard } from "@/components/leaderboard-card";
 import { filterSpots, useBoard } from "@/lib/board-context";
 import { formatMoney, timeAgo } from "@/lib/format";
 import {
+  bidToInr,
+  formatInr,
+  paymentCheckoutUrl,
+  type PaymentMethod,
+} from "@/lib/payments";
+import {
   clearPendingBid,
   readPendingBid,
   savePendingBid,
   type PendingBid,
 } from "@/lib/pending-bid";
-import { PAYPAL_ME_URL } from "@/lib/site";
+import { UPI_ID, USD_TO_INR } from "@/lib/site";
 import { parseSpotifyTrackId, spotifyEmbedUrl, spotifyTrackUrl } from "@/lib/spotify";
 import { GENRES, type Genre, type TimeFilter } from "@/lib/types";
 
 const PAGE_SIZE = 20;
-
-function paypalCheckoutUrl(amount: number) {
-  const dollars = Math.max(1, Math.round(amount));
-  return `${PAYPAL_ME_URL}/${dollars}`;
-}
 
 export function HomeBoard() {
   const { spots, activity, placeBid, registerClick, online } = useBoard();
@@ -32,11 +33,13 @@ export function HomeBoard() {
   const [status, setStatus] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [pending, setPending] = useState<PendingBid | null>(null);
+  const [method, setMethod] = useState<PaymentMethod>("paypal");
   const [playingId, setPlayingId] = useState<string | null>(null);
   const [ready, setReady] = useState(false);
   const [page, setPage] = useState(1);
   const claimFormRef = useRef<HTMLFormElement>(null);
   const bidInitialized = useRef(false);
+  const inrAmount = bidToInr(bid);
 
   const topBid = spots[0]?.bid ?? 0;
   const claimDefault = Math.max(1, topBid + 1);
@@ -149,15 +152,35 @@ export function HomeBoard() {
         thumbnailUrl: meta.thumbnailUrl || "",
         genre: selectedGenre,
         bid,
+        method,
       };
 
       savePendingBid(draft);
       setPending(draft);
+
+      if (method === "upi") {
+        setStatus(
+          `Open your UPI app and pay ${formatInr(bidToInr(bid))} (≈ ${formatMoney(bid)}), then confirm below.`,
+        );
+        window.location.assign(paymentCheckoutUrl("upi", bid));
+        setBusy(false);
+        return;
+      }
+
       setStatus(`Redirecting to PayPal for ${formatMoney(bid)}…`);
-      window.location.assign(paypalCheckoutUrl(bid));
+      window.location.assign(paymentCheckoutUrl("paypal", bid));
     } catch (err) {
-      setStatus(err instanceof Error ? err.message : "Could not start PayPal checkout.");
+      setStatus(err instanceof Error ? err.message : "Could not start checkout.");
       setBusy(false);
+    }
+  }
+
+  async function copyUpiId() {
+    try {
+      await navigator.clipboard.writeText(UPI_ID);
+      setStatus(`Copied UPI ID ${UPI_ID}`);
+    } catch {
+      setStatus(`UPI ID: ${UPI_ID}`);
     }
   }
 
@@ -228,22 +251,37 @@ export function HomeBoard() {
         </div>
       </section>
 
-      {/* Pending PayPal */}
+      {/* Pending payment */}
       {pending && (
         <div className="card mt-4 flex flex-col gap-3 border-(--accent)/35 p-4 sm:flex-row sm:items-center sm:justify-between">
           <div className="min-w-0">
-            <p className="text-sm font-semibold text-(--accent)">Waiting for PayPal</p>
-            <p className="mt-1 truncate text-sm text-[#b3b3b3]">
-              {pending.title} · {formatMoney(pending.bid)} — after you pay, confirm below.
+            <p className="text-sm font-semibold text-(--accent)">
+              Waiting for {pending.method === "upi" ? "UPI" : "PayPal"}
+            </p>
+            <p className="mt-1 text-sm text-[#b3b3b3]">
+              {pending.title} · {formatMoney(pending.bid)}
+              {pending.method === "upi"
+                ? ` · ${formatInr(bidToInr(pending.bid))} via ${UPI_ID}`
+                : ""}{" "}
+              — after you pay, confirm below.
             </p>
           </div>
           <div className="flex shrink-0 flex-wrap gap-2">
             <a
-              href={paypalCheckoutUrl(pending.bid)}
+              href={paymentCheckoutUrl(pending.method ?? "paypal", pending.bid)}
               className="rounded-full bg-[#242424] px-4 py-2 text-sm font-medium hover:bg-[#2a2a2a]"
             >
-              Open PayPal again
+              {pending.method === "upi" ? "Open UPI again" : "Open PayPal again"}
             </a>
+            {pending.method === "upi" && (
+              <button
+                type="button"
+                className="rounded-full bg-[#242424] px-4 py-2 text-sm font-medium hover:bg-[#2a2a2a]"
+                onClick={copyUpiId}
+              >
+                Copy UPI ID
+              </button>
+            )}
             <button
               type="button"
               className="primary-btn px-4 py-2 text-sm"
@@ -298,13 +336,56 @@ export function HomeBoard() {
           </select>
         </div>
         <button className="primary-btn h-11 px-6 text-sm" disabled={busy}>
-          {busy ? "Redirecting…" : `Outbid ${formatMoney(bid)}`}
+          {busy
+            ? "Starting…"
+            : method === "upi"
+              ? `Pay ${formatInr(inrAmount)} UPI`
+              : `Pay ${formatMoney(bid)} PayPal`}
         </button>
-        <p className="text-xs text-[#a7a7a7] sm:col-span-3">
-          Pay on PayPal, then return and tap{" "}
-          <span className="text-[#b3b3b3]">I paid — put me on the board</span>. Same
-          link again raises your existing bid.
-        </p>
+
+        <div className="sm:col-span-3">
+          <p className="label">Pay with</p>
+          <div className="flex flex-wrap gap-2">
+            <button
+              type="button"
+              onClick={() => setMethod("paypal")}
+              className={`chip ${method === "paypal" ? "chip-active" : ""}`}
+            >
+              PayPal · international
+            </button>
+            <button
+              type="button"
+              onClick={() => setMethod("upi")}
+              className={`chip ${method === "upi" ? "chip-active" : ""}`}
+            >
+              UPI · India · {formatInr(inrAmount)}
+            </button>
+          </div>
+          <p className="mt-2 text-xs text-[#a7a7a7]">
+            {method === "upi" ? (
+              <>
+                Opens your UPI app for {formatInr(inrAmount)} (≈ {formatMoney(bid)} at ~
+                ₹{USD_TO_INR}/$). ID:{" "}
+                <button
+                  type="button"
+                  className="text-[#b3b3b3] underline hover:text-white"
+                  onClick={copyUpiId}
+                >
+                  {UPI_ID}
+                </button>
+                . Then tap{" "}
+                <span className="text-[#b3b3b3]">I paid — put me on the board</span>.
+              </>
+            ) : (
+              <>
+                International checkout via PayPal.Me. Then return and tap{" "}
+                <span className="text-[#b3b3b3]">I paid — put me on the board</span>.
+              </>
+            )}{" "}
+            Same link again raises your existing bid.
+          </p>
+        </div>
+
         {status && (
           <p className="rounded-lg bg-[#242424] px-3 py-2 text-sm text-[#b3b3b3] sm:col-span-3">
             {status}
