@@ -1,12 +1,20 @@
 @import "tailwindcss";
 
 :root {
-  --bg: #050506;
-  --panel: #0e0f12;
+  --bg: #121212;
+  --bg-elevated: #181818;
+  --panel: #181818;
+  --panel-hover: #282828;
   --line: rgba(255, 255, 255, 0.08);
-  --green: #1ed760;
-  --green-dim: #169c46;
-  --muted: #9aa0a6;
+  --line-strong: rgba(255, 255, 255, 0.16);
+  --accent: #2dd4bf;
+  --accent-soft: rgba(45, 212, 191, 0.16);
+  --accent-ink: #042f2e;
+  --muted: #a7a7a7;
+  --text: #ffffff;
+  --text-secondary: #b3b3b3;
+  --success: #2dd4bf;
+  --radius: 8px;
 }
 
 * {
@@ -17,17 +25,10 @@ html,
 body {
   margin: 0;
   min-height: 100%;
-  background:
-    radial-gradient(1200px 500px at 50% -10%, rgba(30, 215, 96, 0.12), transparent 55%),
-    radial-gradient(800px 400px at 100% 20%, rgba(80, 70, 180, 0.08), transparent 50%),
-    var(--bg);
-  color: #f4f6f5;
-  font-family:
-    "Segoe UI",
-    ui-sans-serif,
-    system-ui,
-    -apple-system,
-    sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-sans), ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  -webkit-font-smoothing: antialiased;
 }
 
 a {
@@ -41,31 +42,101 @@ select {
   font: inherit;
 }
 
-.noise {
-  background-image: radial-gradient(rgba(255, 255, 255, 0.035) 0.6px, transparent 0.6px);
-  background-size: 4px 4px;
+::selection {
+  background: var(--accent-soft);
+  color: #fff;
 }
 
 .card {
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.035), rgba(255, 255, 255, 0.015));
+  background: var(--panel);
   border: 1px solid var(--line);
-  border-radius: 18px;
+  border-radius: 12px;
 }
 
-.green-btn {
-  background: var(--green);
-  color: #04140a;
+.primary-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--accent);
+  color: var(--accent-ink);
   font-weight: 700;
   border: 0;
   border-radius: 999px;
   cursor: pointer;
 }
 
-.green-btn:hover {
-  filter: brightness(1.05);
+.primary-btn:hover {
+  filter: brightness(1.06);
 }
 
-.green-btn:disabled {
+.primary-btn:disabled {
   opacity: 0.45;
   cursor: not-allowed;
+  filter: none;
+}
+
+.field {
+  width: 100%;
+  border-radius: 8px;
+  border: 1px solid transparent;
+  background: #242424;
+  color: var(--text);
+  padding: 0.75rem 0.9rem;
+  outline: none;
+}
+
+.field:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 1px var(--accent);
+}
+
+.chip {
+  border-radius: 999px;
+  padding: 0.4rem 0.85rem;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  border: 0;
+  color: var(--text);
+  background: #242424;
+  cursor: pointer;
+}
+
+.chip:hover {
+  background: #2a2a2a;
+}
+
+.chip-active {
+  background: var(--accent);
+  color: var(--accent-ink);
+}
+
+.chip-active:hover {
+  background: var(--accent);
+  color: var(--accent-ink);
+  filter: brightness(1.04);
+}
+
+.rank-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.5rem;
+  height: 1.5rem;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--muted);
+}
+
+.rank-badge-top {
+  color: var(--accent-ink);
+  background: var(--accent);
+}
+
+.label {
+  display: block;
+  margin-bottom: 0.35rem;
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--muted);
 }

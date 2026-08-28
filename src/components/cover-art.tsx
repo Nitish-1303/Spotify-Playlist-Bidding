@@ -42,7 +42,7 @@ export function CoverArt({ trackId, src, alt = "", className }: CoverArtProps) {
 
   if (failed || !url) {
     return (
-      <span className={`grid place-items-center bg-white/5 text-[#1ed760] ${className ?? ""}`}>
+      <span className={`grid place-items-center bg-[#242424] text-[var(--accent)] ${className ?? ""}`}>
         ♪
       </span>
     );

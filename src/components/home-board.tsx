@@ -8,6 +8,7 @@ import { CoverArt } from "@/components/cover-art";
 import { savePendingBid } from "@/lib/pending-bid";
 import { parseSpotifyTrackId, spotifyEmbedUrl, spotifyTrackUrl } from "@/lib/spotify";
 import { GENRES, type Genre, type TimeFilter } from "@/lib/types";
+import type { Spot } from "@/lib/types";
 
 export function HomeBoard() {
   const { spots, activity, placeBid, registerClick, listForSale } = useBoard();
@@ -17,7 +18,6 @@ export function HomeBoard() {
   const [url, setUrl] = useState("");
   const [bid, setBid] = useState(1);
   const [selectedGenre, setSelectedGenre] = useState<Exclude<Genre, "All">>("Pop");
-  const [asking, setAsking] = useState("");
   const [email, setEmail] = useState("");
   const [status, setStatus] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -50,14 +50,15 @@ export function HomeBoard() {
     [spots, genre, time, forSaleOnly],
   );
 
+  const topThree = spots.slice(0, 3);
+  const listedCount = spots.filter((s) => s.askingPrice).length;
   const topBid = spots[0]?.bid ?? 0;
-  const claimPrice = Math.max(1, topBid + 1);
 
   async function onBid(e: React.FormEvent) {
     e.preventDefault();
     const trackId = parseSpotifyTrackId(url);
     if (!trackId) {
-      setStatus("Paste a Spotify song link, like open.spotify.com/track/…");
+      setStatus("Paste a song link, like open.spotify.com/track/…");
       return;
     }
     if (bid < 1) {
@@ -76,7 +77,6 @@ export function HomeBoard() {
       };
       if (!res.ok || !meta.title) throw new Error(meta.error || "Could not load that song.");
 
-      const askingPrice = asking ? Number(asking) : undefined;
       const pending = {
         trackId,
         trackUrl: spotifyTrackUrl(trackId),
@@ -85,7 +85,6 @@ export function HomeBoard() {
         thumbnailUrl: meta.thumbnailUrl || "",
         genre: selectedGenre,
         bid,
-        askingPrice: Number.isFinite(askingPrice) ? askingPrice : undefined,
       };
 
       const checkoutRes = await fetch("/api/bid/checkout", {
@@ -107,18 +106,15 @@ export function HomeBoard() {
         throw new Error(checkout.error || "Checkout failed.");
       }
 
-      // Demo / unconfigured: keep free local bids working
       if (checkout.demo || !checkout.checkout_url) {
         const spot = placeBid(pending);
         setPlayingId(spot.trackId);
-        setStatus(
-          `Demo bid placed at $${spot.bid}. Add Dodo keys in .env.local to charge for real.`,
-        );
+        setStatus(`Demo bid placed at $${spot.bid}. Rank is on PlaylistBid only.`);
         return;
       }
 
       savePendingBid(pending);
-      setStatus("Opening secure Dodo checkout…");
+      setStatus("Opening checkout…");
       await openCheckout(checkout.checkout_url);
     } catch (err) {
       setStatus(err instanceof Error ? err.message : "Could not start checkout.");
@@ -128,77 +124,84 @@ export function HomeBoard() {
   }
 
   return (
-    <main className="noise mx-auto max-w-6xl px-4 pb-16">
-      <section className="flex flex-col gap-8 py-12">
-        <div className="max-w-2xl">
-          <p className="text-sm font-medium tracking-wide text-[#1ed760]">
-            Bid for the #1 song.
-          </p>
-          <h1 className="mt-2 text-4xl font-semibold tracking-tight sm:text-5xl">
-            Get your favorite Spotify track heard.
-          </h1>
-          <p className="mt-4 text-[#b7bdc0]">
-            The competitive song billboard. Paste a Spotify track, outbid the
-            competition, and capture the plays. No accounts. Songs only — not
-            playlists.
-          </p>
+    <main className="mx-auto max-w-6xl px-4 pb-20 sm:px-6">
+      {/* 1. Short strip */}
+      <p className="border-b border-white/8 py-3 text-sm text-[#a7a7a7]">
+        Independent song board · Highest bid ranks #1 here · Not affiliated with Spotify
+      </p>
+
+      {/* 2. Top 3 */}
+      <section className="py-8">
+        <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">Top of the board</h1>
+        <div className="mt-5 grid gap-3 sm:grid-cols-3">
+          {topThree.map((spot, index) => (
+            <TopCard
+              key={spot.id}
+              spot={spot}
+              rank={index + 1}
+              ready={ready}
+              onPlay={() => setPlayingId(spot.trackId)}
+              onOpen={() => registerClick(spot.id)}
+            />
+          ))}
+          {topThree.length === 0 && (
+            <p className="text-sm text-[#a7a7a7] sm:col-span-3">No songs yet. Place the first bid.</p>
+          )}
         </div>
-        <form onSubmit={onBid} className="card w-full max-w-xl p-5">
-          <div className="mb-4 flex items-center justify-between">
-            <span className="text-sm text-[#9aa0a6]">Claim #1 for</span>
-            <div className="flex items-center gap-2">
-              <button
-                type="button"
-                className="h-8 w-8 rounded-full border border-white/15"
-                onClick={() => setBid((n) => Math.max(1, n - 1))}
-              >
-                −
-              </button>
-              <b className="min-w-8 text-center text-2xl">{bid}</b>
-              <button
-                type="button"
-                className="h-8 w-8 rounded-full border border-white/15"
-                onClick={() => setBid((n) => n + 1)}
-              >
-                +
-              </button>
-            </div>
+      </section>
+
+      {/* 3. Bid form */}
+      <section className="mb-10">
+        <form onSubmit={onBid} className="card p-5 sm:p-6">
+          <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
+            <h2 className="text-lg font-bold">Place a bid</h2>
+            <span className="text-xs text-[#a7a7a7]">
+              #1 is {formatMoney(topBid)} · {paymentsReady ? "Paid checkout" : "Demo mode"}
+            </span>
           </div>
-          <p className="mb-4 text-xs text-[#9aa0a6]">
-            New songs start at $1. Paying less than #1 still puts you on the
-            board at whatever rank that bid earns.{" "}
-            {paymentsReady
-              ? "Paid securely with Dodo Payments."
-              : "Payments not configured yet — bids stay in demo mode."}
-          </p>
-          <label className="mb-1 block text-xs text-[#9aa0a6]">
-            Spotify song URL
-          </label>
-          <input
-            value={url}
-            onChange={(e) => setUrl(e.target.value)}
-            placeholder="https://open.spotify.com/track/…"
-            className="mb-3 w-full rounded-xl border border-white/10 bg-black/40 px-3 py-3 outline-none ring-[#1ed760] focus:ring-2"
-          />
-          <label className="mb-1 block text-xs text-[#9aa0a6]">
-            Email for receipt (optional)
-          </label>
-          <input
-            type="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            placeholder="you@email.com"
-            className="mb-3 w-full rounded-xl border border-white/10 bg-black/40 px-3 py-3 outline-none ring-[#1ed760] focus:ring-2"
-          />
-          <div className="mb-3 grid grid-cols-2 gap-3">
+
+          <div className="grid gap-4 lg:grid-cols-[1fr_auto_auto_auto] lg:items-end">
+            <div className="min-w-0">
+              <label className="label">Song link</label>
+              <input
+                value={url}
+                onChange={(e) => setUrl(e.target.value)}
+                placeholder="https://open.spotify.com/track/…"
+                className="field"
+              />
+            </div>
             <div>
-              <label className="mb-1 block text-xs text-[#9aa0a6]">Genre</label>
+              <label className="label">Bid</label>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  className="flex h-11 w-11 items-center justify-center rounded-full bg-[#242424] text-lg hover:bg-[#2a2a2a]"
+                  onClick={() => setBid((n) => Math.max(1, n - 1))}
+                  aria-label="Decrease bid"
+                >
+                  −
+                </button>
+                <span className="min-w-14 text-center text-xl font-bold tabular-nums">
+                  {formatMoney(bid)}
+                </span>
+                <button
+                  type="button"
+                  className="flex h-11 w-11 items-center justify-center rounded-full bg-[#242424] text-lg hover:bg-[#2a2a2a]"
+                  onClick={() => setBid((n) => n + 1)}
+                  aria-label="Increase bid"
+                >
+                  +
+                </button>
+              </div>
+            </div>
+            <div>
+              <label className="label">Genre</label>
               <select
                 value={selectedGenre}
                 onChange={(e) =>
                   setSelectedGenre(e.target.value as Exclude<Genre, "All">)
                 }
-                className="w-full rounded-xl border border-white/10 bg-black/40 px-3 py-3"
+                className="field min-w-32"
               >
                 {GENRES.filter((g) => g !== "All").map((g) => (
                   <option key={g} value={g}>
@@ -207,152 +210,166 @@ export function HomeBoard() {
                 ))}
               </select>
             </div>
+            <button className="primary-btn h-11 px-6 text-sm" disabled={busy}>
+              {busy
+                ? "Starting…"
+                : paymentsReady
+                  ? `Pay ${formatMoney(bid)}`
+                  : `Bid ${formatMoney(bid)}`}
+            </button>
+          </div>
+
+          <div className="mt-3 grid gap-3 sm:grid-cols-2">
             <div>
-              <label className="mb-1 block text-xs text-[#9aa0a6]">
-                List this spot for sale
-              </label>
+              <label className="label">Email (optional)</label>
               <input
-                value={asking}
-                onChange={(e) => setAsking(e.target.value)}
-                placeholder="Asking price (optional)"
-                className="w-full rounded-xl border border-white/10 bg-black/40 px-3 py-3"
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="Receipt email"
+                className="field"
               />
             </div>
+            <p className="self-end text-xs text-[#a7a7a7] sm:pb-3">
+              Same link again raises your existing bid.
+            </p>
           </div>
-          <button className="green-btn w-full py-3" disabled={busy}>
-            {busy
-              ? "Starting checkout…"
-              : paymentsReady
-                ? `Pay ${formatMoney(bid)} with Dodo · claim #1 for ${formatMoney(claimPrice)}`
-                : `Outbid for #1 · ${formatMoney(claimPrice)} (demo)`}
-          </button>
-          {status && <p className="mt-3 text-sm text-[#c9d4cc]">{status}</p>}
-          <p className="mt-3 text-xs text-[#9aa0a6]">
-            Already on the list? Paste the same song link and raise your bid.
-          </p>
+          {status && (
+            <p className="mt-3 rounded-lg bg-[#242424] px-3 py-2 text-sm text-[#b3b3b3]">
+              {status}
+            </p>
+          )}
         </form>
       </section>
 
+      {/* 4. Now playing */}
       {playingId && (
-        <section className="mb-10 overflow-hidden rounded-2xl border border-white/8">
+        <section className="mb-10">
+          <div className="mb-2 flex items-center justify-between">
+            <h2 className="text-sm font-bold">Now playing</h2>
+            <span className="text-xs text-[#a7a7a7]">Official Spotify player</span>
+          </div>
           <iframe
-            title="Spotify player"
+            title="Official Spotify player"
             src={spotifyEmbedUrl(playingId)}
             width="100%"
             height="152"
             allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture"
             loading="lazy"
+            className="overflow-hidden rounded-xl"
           />
         </section>
       )}
 
-      <section id="categories" className="mb-6 flex flex-wrap gap-2">
-        {GENRES.map((g) => (
-          <button
-            key={g}
-            onClick={() => setGenre(g)}
-            className={`rounded-full px-3 py-1.5 text-sm ${
-              genre === g
-                ? "bg-[#1ed760] text-[#04140a]"
-                : "border border-white/10 text-[#c7ccc9]"
-            }`}
-          >
-            {g}
-          </button>
-        ))}
-      </section>
+      {/* 5. Full leaderboard */}
+      <section id="board">
+        <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
+          <div>
+            <h2 className="text-xl font-bold">Leaderboard</h2>
+            <p className="mt-1 text-sm text-[#a7a7a7]">
+              {filtered.length} of {spots.length} songs
+            </p>
+          </div>
+          <div className="flex flex-wrap gap-1 text-sm">
+            {(
+              [
+                ["all", "All time"],
+                ["today", "Today"],
+                ["yesterday", "Yesterday"],
+                ["month", "This month"],
+              ] as const
+            ).map(([key, label]) => (
+              <button
+                key={key}
+                type="button"
+                onClick={() => setTime(key)}
+                className={`rounded-full px-3 py-1 ${
+                  time === key ? "bg-[#242424] text-white" : "text-[#a7a7a7] hover:text-white"
+                }`}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+        </div>
 
-      <div className="mb-6 flex flex-wrap items-center gap-3 text-sm">
-        {(
-          [
-            ["all", "All Time"],
-            ["today", "Today"],
-            ["yesterday", "Yesterday"],
-            ["month", "1 Month"],
-          ] as const
-        ).map(([key, label]) => (
-          <button
-            key={key}
-            onClick={() => setTime(key)}
-            className={time === key ? "text-white" : "text-[#9aa0a6]"}
-          >
-            {label}
-          </button>
-        ))}
-        <button
-          onClick={() => setForSaleOnly((v) => !v)}
-          className={`ml-auto rounded-full px-3 py-1 ${
-            forSaleOnly ? "bg-[#1ed760] text-[#04140a]" : "border border-white/10"
-          }`}
-        >
-          For Sale {spots.filter((s) => s.askingPrice).length}
-        </button>
-      </div>
+        <div className="mb-5 flex flex-wrap gap-2">
+          {GENRES.map((g) => (
+            <button
+              key={g}
+              type="button"
+              onClick={() => setGenre(g)}
+              className={`chip ${genre === g ? "chip-active" : ""}`}
+            >
+              {g}
+            </button>
+          ))}
+          {listedCount > 0 && (
+            <button
+              type="button"
+              onClick={() => setForSaleOnly((v) => !v)}
+              className={`chip ${forSaleOnly ? "chip-active" : ""}`}
+            >
+              For sale · {listedCount}
+            </button>
+          )}
+        </div>
 
-      <p className="mb-4 text-sm text-[#9aa0a6]">
-        Showing {filtered.length} of {spots.length} songs
-      </p>
-
-      <div id="board" className="grid gap-6 lg:grid-cols-[1fr_280px]">
-        <ol className="space-y-3">
-          {filtered.map((spot, index) => {
-            const rank = index + 1;
-            const claimFor = spot.bid + 1;
-            return (
-              <li key={spot.id} className="card p-4">
-                <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
+        <div className="grid gap-6 lg:grid-cols-[1fr_240px]">
+          <ol className="space-y-1">
+            {filtered.map((spot, index) => {
+              const rank = index + 1;
+              return (
+                <li
+                  key={spot.id}
+                  className="flex items-center gap-3 rounded-lg px-2 py-2 transition hover:bg-[#181818] sm:gap-4 sm:px-3"
+                >
+                  <span className={`rank-badge ${rank === 1 ? "rank-badge-top" : ""}`}>
+                    {rank}
+                  </span>
                   <button
                     type="button"
-                    className="self-start rounded-full border border-white/12 px-3 py-1 text-xs text-[#9aa0a6]"
-                    onClick={() => {
-                      setBid(claimFor);
-                      window.scrollTo({ top: 0, behavior: "smooth" });
-                    }}
+                    onClick={() => setPlayingId(spot.trackId)}
+                    className="h-12 w-12 shrink-0 overflow-hidden rounded bg-[#242424]"
+                    aria-label={`Preview ${spot.title}`}
                   >
-                    Claim this rank for {formatMoney(claimFor)}
+                    <CoverArt
+                      trackId={spot.trackId}
+                      src={spot.thumbnailUrl}
+                      alt=""
+                      className="h-full w-full object-cover"
+                    />
                   </button>
-                  <div className="flex min-w-0 flex-1 items-center gap-4">
-                    <span className="w-8 text-lg font-semibold text-[#9aa0a6]">
-                      #{rank}
-                    </span>
-                    <button
-                      type="button"
-                      onClick={() => setPlayingId(spot.trackId)}
-                      className="h-14 w-14 shrink-0 overflow-hidden rounded-md bg-white/5"
+                  <div className="min-w-0 flex-1">
+                    <a
+                      href={spot.trackUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                      onClick={() => registerClick(spot.id)}
+                      className="block truncate font-medium hover:underline"
                     >
-                      <CoverArt
-                        trackId={spot.trackId}
-                        src={spot.thumbnailUrl}
-                        alt={`${spot.title} cover`}
-                        className="h-full w-full object-cover"
-                      />
-                    </button>
-                    <div className="min-w-0">
-                      <a
-                        href={spot.trackUrl}
-                        target="_blank"
-                        rel="noreferrer"
-                        onClick={() => registerClick(spot.id)}
-                        className="block truncate font-medium hover:underline"
-                      >
-                        {spot.title}
-                      </a>
-                      <p className="truncate text-sm text-[#9aa0a6]">{spot.artist}</p>
-                      <p className="mt-1 text-xs text-[#9aa0a6]">
-                        {spot.genre} · {spot.clicks} plays
-                        {ready ? ` · Raised ${timeAgo(spot.raisedAt)}` : ""}
-                        {spot.askingPrice ? ` · For sale ${formatMoney(spot.askingPrice)}` : ""}
-                      </p>
-                    </div>
+                      {spot.title}
+                    </a>
+                    <p className="truncate text-sm text-[#a7a7a7]">
+                      {spot.artist}
+                      <span className="mx-1.5 text-white/20">·</span>
+                      {spot.genre}
+                      {ready ? (
+                        <>
+                          <span className="mx-1.5 text-white/20">·</span>
+                          {timeAgo(spot.raisedAt)}
+                        </>
+                      ) : null}
+                    </p>
                   </div>
-                  <div className="text-right">
-                    <div className="text-xl font-semibold">{formatMoney(spot.bid)}</div>
+                  <div className="shrink-0 text-right">
+                    <div className="font-bold tabular-nums">{formatMoney(spot.bid)}</div>
                     <button
                       type="button"
-                      className="text-xs text-[#1ed760]"
+                      className="text-xs text-[#a7a7a7] hover:text-(--accent)"
                       onClick={() => {
                         const next = window.prompt(
-                          "Asking price to list this spot",
+                          "Asking price to list this board spot (this site only)",
                           String(spot.askingPrice ?? spot.bid * 3),
                         );
                         if (!next) return;
@@ -360,36 +377,89 @@ export function HomeBoard() {
                         if (Number.isFinite(n) && n > 0) listForSale(spot.trackId, n);
                       }}
                     >
-                      List for sale
+                      {spot.askingPrice ? `Ask ${formatMoney(spot.askingPrice)}` : "List"}
                     </button>
                   </div>
-                </div>
+                </li>
+              );
+            })}
+            {filtered.length === 0 && (
+              <li className="card px-4 py-10 text-center text-sm text-[#a7a7a7]">
+                No songs match these filters.
               </li>
-            );
-          })}
-          {filtered.length === 0 && (
-            <li className="card p-8 text-center text-[#9aa0a6]">
-              No songs match those filters yet. Be the first to bid.
-            </li>
-          )}
-        </ol>
+            )}
+          </ol>
 
-        <aside className="card h-fit p-4">
-          <h2 className="mb-3 text-sm font-semibold">Live Bids & Updates</h2>
-          <ul className="space-y-3">
-            {activity.slice(0, 12).map((item) => (
-              <li key={item.id} className="border-b border-white/6 pb-3 last:border-0">
-                <p className="truncate text-sm">{item.title}</p>
-                <p className="truncate text-xs text-[#9aa0a6]">{item.artist}</p>
-                <p className="mt-1 text-xs text-[#9aa0a6]">
-                  {formatMoney(item.bid)}
-                  {ready ? ` · ${timeAgo(item.at)}` : ""}
-                </p>
-              </li>
-            ))}
-          </ul>
-        </aside>
-      </div>
+          <aside className="card h-fit p-4">
+            <h2 className="mb-3 text-sm font-bold">Recent bids</h2>
+            <ul>
+              {activity.slice(0, 8).map((item) => (
+                <li
+                  key={item.id}
+                  className="border-b border-white/6 py-2.5 last:border-0"
+                >
+                  <p className="truncate text-sm font-medium">{item.title}</p>
+                  <p className="mt-0.5 text-xs text-[#a7a7a7]">
+                    {formatMoney(item.bid)}
+                    {ready ? ` · ${timeAgo(item.at)}` : ""}
+                  </p>
+                </li>
+              ))}
+            </ul>
+          </aside>
+        </div>
+      </section>
     </main>
+  );
+}
+
+function TopCard({
+  spot,
+  rank,
+  ready,
+  onPlay,
+  onOpen,
+}: {
+  spot: Spot;
+  rank: number;
+  ready: boolean;
+  onPlay: () => void;
+  onOpen: () => void;
+}) {
+  return (
+    <article className="card flex gap-3 p-3">
+      <button
+        type="button"
+        onClick={onPlay}
+        className="h-16 w-16 shrink-0 overflow-hidden rounded bg-[#242424]"
+        aria-label={`Preview ${spot.title}`}
+      >
+        <CoverArt
+          trackId={spot.trackId}
+          src={spot.thumbnailUrl}
+          alt=""
+          className="h-full w-full object-cover"
+        />
+      </button>
+      <div className="min-w-0 flex-1">
+        <div className="mb-1 flex items-center gap-2">
+          <span className={`rank-badge ${rank === 1 ? "rank-badge-top" : ""}`}>{rank}</span>
+          <span className="text-sm font-bold tabular-nums">{formatMoney(spot.bid)}</span>
+        </div>
+        <a
+          href={spot.trackUrl}
+          target="_blank"
+          rel="noreferrer"
+          onClick={onOpen}
+          className="block truncate font-medium hover:underline"
+        >
+          {spot.title}
+        </a>
+        <p className="truncate text-sm text-[#a7a7a7]">
+          {spot.artist}
+          {ready ? ` · ${timeAgo(spot.raisedAt)}` : ""}
+        </p>
+      </div>
+    </article>
   );
 }

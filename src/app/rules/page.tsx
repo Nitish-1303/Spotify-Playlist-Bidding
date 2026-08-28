@@ -5,25 +5,40 @@ export default function RulesPage() {
   return (
     <>
       <SiteHeader />
-      <main className="mx-auto max-w-3xl px-4 py-12">
-        <p className="text-sm text-[#1ed760]">
-          <Link href="/">← Back to the board</Link>
+      <main className="mx-auto max-w-2xl px-4 py-14 sm:px-6">
+        <p className="text-sm text-[#a7a7a7]">
+          <Link href="/" className="hover:text-white">
+            ← Board
+          </Link>
         </p>
-        <h1 className="mt-4 text-4xl font-semibold">Rules</h1>
-        <div className="mt-8 space-y-6 text-[#c7ccc9]">
-          <p>
-            PlaylistBid is a live leaderboard for favorite Spotify songs. Highest
-            bid sits at #1. Everyone else ranks by bid amount.
-          </p>
-          <ol className="list-decimal space-y-3 pl-5">
-            <li>Submit a Spotify <b>track</b> URL only. Playlists, albums, and artist pages are not accepted.</li>
-            <li>Bids start at $1. When Dodo Payments is configured, you pay that amount at checkout; otherwise the board runs in demo mode in your browser.</li>
-            <li>The same song link raises your existing bid instead of creating a duplicate row.</li>
-            <li>Clicking a title opens Spotify and counts as a play on the board.</li>
-            <li>Optional asking prices mark a rank as for sale. Contact is up to you.</li>
-            <li>No copyrighted artwork uploads — we pull cover art from Spotify.</li>
-          </ol>
-        </div>
+        <h1 className="mt-4 text-3xl font-bold tracking-tight">Rules</h1>
+        <p className="mt-4 text-[#b3b3b3] leading-relaxed">
+          PlaylistBid is a ranking on{" "}
+          <b className="font-semibold text-white">this website</b>. Highest bid
+          is #1. Playback uses Spotify’s official player. We do not add songs to
+          Spotify playlists or boost streams.
+        </p>
+        <ol className="mt-8 space-y-3">
+          {[
+            <>
+              Paste a public <b className="font-semibold text-white">song</b> link
+              only (not a playlist or album).
+            </>,
+            <>Bids start at $1. A lower bid still lands at the rank that amount earns.</>,
+            <>The same song link raises an existing bid instead of adding a duplicate.</>,
+            <>Titles open on Spotify. That click is counted on this board only.</>,
+            <>Cover art and preview play come from Spotify. Do not upload files.</>,
+          ].map((item, i) => (
+            <li key={i} className="flex gap-3 rounded-xl bg-[#181818] p-4 text-[#b3b3b3]">
+              <span className="rank-badge rank-badge-top shrink-0">{i + 1}</span>
+              <span className="leading-relaxed">{item}</span>
+            </li>
+          ))}
+        </ol>
+        <p className="mt-8 text-sm text-[#a7a7a7]">
+          PlaylistBid is not affiliated with Spotify. Spotify is a trademark of
+          Spotify AB.
+        </p>
       </main>
       <SiteFooter />
     </>

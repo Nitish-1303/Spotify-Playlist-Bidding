@@ -39,7 +39,7 @@ export async function POST(request: Request) {
 
   if (!trackId) {
     return NextResponse.json(
-      { error: "A valid Spotify track is required." },
+      { error: "A valid song link is required." },
       { status: 400 },
     );
   }
