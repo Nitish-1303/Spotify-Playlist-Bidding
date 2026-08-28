@@ -39,6 +39,14 @@ export function SiteFooter() {
             <Link href="/rules" className="hover:text-white">
               Rules
             </Link>
+            <a
+              href="https://paypal.me/YeluruNitish"
+              target="_blank"
+              rel="noreferrer"
+              className="hover:text-white"
+            >
+              Support
+            </a>
             <a href="mailto:hello@playlistbid.local" className="hover:text-white">
               Contact
             </a>

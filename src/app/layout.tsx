@@ -1,5 +1,6 @@
 import "./globals.css";
 import type { Metadata } from "next";
+import { Analytics } from "@vercel/analytics/next";
 import { Inter } from "next/font/google";
 import { BoardProvider } from "@/lib/board-context";
 import {
@@ -70,6 +71,7 @@ export default function RootLayout({
     <html lang="en" className={inter.variable} suppressHydrationWarning>
       <body className={inter.className} suppressHydrationWarning>
         <BoardProvider>{children}</BoardProvider>
+        <Analytics />
       </body>
     </html>
   );
