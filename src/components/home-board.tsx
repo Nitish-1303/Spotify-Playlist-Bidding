@@ -2,7 +2,10 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { filterSpots, useBoard } from "@/lib/board-context";
+import { useDodoCheckout } from "@/lib/dodo-checkout";
 import { formatMoney, timeAgo } from "@/lib/format";
+import { CoverArt } from "@/components/cover-art";
+import { savePendingBid } from "@/lib/pending-bid";
 import { parseSpotifyTrackId, spotifyEmbedUrl, spotifyTrackUrl } from "@/lib/spotify";
 import { GENRES, type Genre, type TimeFilter } from "@/lib/types";
 
@@ -15,15 +18,32 @@ export function HomeBoard() {
   const [bid, setBid] = useState(1);
   const [selectedGenre, setSelectedGenre] = useState<Exclude<Genre, "All">>("Pop");
   const [asking, setAsking] = useState("");
+  const [email, setEmail] = useState("");
   const [status, setStatus] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [paymentsReady, setPaymentsReady] = useState(false);
   const [playingId, setPlayingId] = useState<string | null>(null);
   const [ready, setReady] = useState(false);
+
+  const { openCheckout } = useDodoCheckout({
+    onClosed: () => setBusy(false),
+    onError: (message) => {
+      setBusy(false);
+      setStatus(message);
+    },
+  });
 
   useEffect(() => {
     setReady(true);
     setPlayingId((id) => id ?? spots[0]?.trackId ?? null);
   }, [spots]);
+
+  useEffect(() => {
+    fetch("/api/bid/checkout")
+      .then((r) => r.json())
+      .then((d: { configured?: boolean }) => setPaymentsReady(Boolean(d.configured)))
+      .catch(() => setPaymentsReady(false));
+  }, []);
 
   const filtered = useMemo(
     () => filterSpots(spots, genre, time, forSaleOnly),
@@ -55,8 +75,9 @@ export function HomeBoard() {
         error?: string;
       };
       if (!res.ok || !meta.title) throw new Error(meta.error || "Could not load that song.");
+
       const askingPrice = asking ? Number(asking) : undefined;
-      const spot = placeBid({
+      const pending = {
         trackId,
         trackUrl: spotifyTrackUrl(trackId),
         title: meta.title,
@@ -65,11 +86,42 @@ export function HomeBoard() {
         genre: selectedGenre,
         bid,
         askingPrice: Number.isFinite(askingPrice) ? askingPrice : undefined,
+      };
+
+      const checkoutRes = await fetch("/api/bid/checkout", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          ...pending,
+          email: email.trim() || undefined,
+        }),
       });
-      setPlayingId(spot.trackId);
-      setStatus(`You’re on the board at $${spot.bid}. Rank updates instantly.`);
+      const checkout = (await checkoutRes.json()) as {
+        demo?: boolean;
+        checkout_url?: string;
+        error?: string;
+        message?: string;
+      };
+
+      if (!checkoutRes.ok) {
+        throw new Error(checkout.error || "Checkout failed.");
+      }
+
+      // Demo / unconfigured: keep free local bids working
+      if (checkout.demo || !checkout.checkout_url) {
+        const spot = placeBid(pending);
+        setPlayingId(spot.trackId);
+        setStatus(
+          `Demo bid placed at $${spot.bid}. Add Dodo keys in .env.local to charge for real.`,
+        );
+        return;
+      }
+
+      savePendingBid(pending);
+      setStatus("Opening secure Dodo checkout…");
+      await openCheckout(checkout.checkout_url);
     } catch (err) {
-      setStatus(err instanceof Error ? err.message : "Could not load that song.");
+      setStatus(err instanceof Error ? err.message : "Could not start checkout.");
     } finally {
       setBusy(false);
     }
@@ -114,7 +166,10 @@ export function HomeBoard() {
           </div>
           <p className="mb-4 text-xs text-[#9aa0a6]">
             New songs start at $1. Paying less than #1 still puts you on the
-            board at whatever rank that bid earns.
+            board at whatever rank that bid earns.{" "}
+            {paymentsReady
+              ? "Paid securely with Dodo Payments."
+              : "Payments not configured yet — bids stay in demo mode."}
           </p>
           <label className="mb-1 block text-xs text-[#9aa0a6]">
             Spotify song URL
@@ -123,6 +178,16 @@ export function HomeBoard() {
             value={url}
             onChange={(e) => setUrl(e.target.value)}
             placeholder="https://open.spotify.com/track/…"
+            className="mb-3 w-full rounded-xl border border-white/10 bg-black/40 px-3 py-3 outline-none ring-[#1ed760] focus:ring-2"
+          />
+          <label className="mb-1 block text-xs text-[#9aa0a6]">
+            Email for receipt (optional)
+          </label>
+          <input
+            type="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            placeholder="you@email.com"
             className="mb-3 w-full rounded-xl border border-white/10 bg-black/40 px-3 py-3 outline-none ring-[#1ed760] focus:ring-2"
           />
           <div className="mb-3 grid grid-cols-2 gap-3">
@@ -155,7 +220,11 @@ export function HomeBoard() {
             </div>
           </div>
           <button className="green-btn w-full py-3" disabled={busy}>
-            {busy ? "Looking up track…" : `Outbid for #1 · ${formatMoney(claimPrice)}`}
+            {busy
+              ? "Starting checkout…"
+              : paymentsReady
+                ? `Pay ${formatMoney(bid)} with Dodo · claim #1 for ${formatMoney(claimPrice)}`
+                : `Outbid for #1 · ${formatMoney(claimPrice)} (demo)`}
           </button>
           {status && <p className="mt-3 text-sm text-[#c9d4cc]">{status}</p>}
           <p className="mt-3 text-xs text-[#9aa0a6]">
@@ -251,16 +320,12 @@ export function HomeBoard() {
                       onClick={() => setPlayingId(spot.trackId)}
                       className="h-14 w-14 shrink-0 overflow-hidden rounded-md bg-white/5"
                     >
-                      {spot.thumbnailUrl ? (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img
-                          src={spot.thumbnailUrl}
-                          alt=""
-                          className="h-full w-full object-cover"
-                        />
-                      ) : (
-                        <span className="grid h-full place-items-center">♪</span>
-                      )}
+                      <CoverArt
+                        trackId={spot.trackId}
+                        src={spot.thumbnailUrl}
+                        alt={`${spot.title} cover`}
+                        className="h-full w-full object-cover"
+                      />
                     </button>
                     <div className="min-w-0">
                       <a

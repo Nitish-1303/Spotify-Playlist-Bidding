@@ -12,7 +12,7 @@ import { startOfDay } from "./format";
 import { SEED_ACTIVITY, SEED_SPOTS } from "./seed";
 import type { Activity, BoardState, Spot, TimeFilter } from "./types";
 
-const STORAGE_KEY = "playlistbid-board-v1";
+const STORAGE_KEY = "playlistbid-board-v2";
 
 function sortSpots(spots: Spot[]) {
   return [...spots].sort((a, b) => b.bid - a.bid || b.raisedAt - a.raisedAt);
