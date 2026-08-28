@@ -17,7 +17,7 @@ export default function RulesPage() {
           </p>
           <ol className="list-decimal space-y-3 pl-5">
             <li>Submit a Spotify <b>track</b> URL only. Playlists, albums, and artist pages are not accepted.</li>
-            <li>Bids start at $1. This demo stores bids in your browser — no real charges.</li>
+            <li>Bids start at $1. When Dodo Payments is configured, you pay that amount at checkout; otherwise the board runs in demo mode in your browser.</li>
             <li>The same song link raises your existing bid instead of creating a duplicate row.</li>
             <li>Clicking a title opens Spotify and counts as a play on the board.</li>
             <li>Optional asking prices mark a rank as for sale. Contact is up to you.</li>

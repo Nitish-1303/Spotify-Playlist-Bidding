@@ -9,6 +9,8 @@
     "lint": "next lint"
   },
   "dependencies": {
+    "@dodopayments/nextjs": "^0.3.9",
+    "dodopayments-checkout": "^1.9.9",
     "next": "^15.4.6",
     "react": "^19.1.0",
     "react-dom": "^19.1.0"

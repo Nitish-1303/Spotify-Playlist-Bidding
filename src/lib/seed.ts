@@ -11,7 +11,8 @@ export const SEED_SPOTS: Spot[] = [
     trackUrl: "https://open.spotify.com/track/0VjIjW4GlUZAMYd2vXMi3b",
     title: "Blinding Lights",
     artist: "The Weeknd",
-    thumbnailUrl: "https://i.scdn.co/image/ab67616d0000b2738863bc11d2aa12b54f5aeb36",
+    thumbnailUrl:
+      "https://image-cdn-ak.spotifycdn.com/image/ab67616d00001e028863bc11d2aa12b54f5aeb36",
     genre: "Pop",
     bid: 9,
     clicks: 41,
@@ -19,11 +20,12 @@ export const SEED_SPOTS: Spot[] = [
   },
   {
     id: "s2",
-    trackId: "7KXjTSCq5nL1LoYtL7XAwT",
-    trackUrl: "https://open.spotify.com/track/7KXjTSCq5nL1LoYtL7XAwT",
+    trackId: "7KXjTSCq5nL1LoYtL7XAwS",
+    trackUrl: "https://open.spotify.com/track/7KXjTSCq5nL1LoYtL7XAwS",
     title: "HUMBLE.",
     artist: "Kendrick Lamar",
-    thumbnailUrl: "https://i.scdn.co/image/ab67616d0000b2738b52c6b9bc4e43d873869699",
+    thumbnailUrl:
+      "https://image-cdn-ak.spotifycdn.com/image/ab67616d00001e028b52c6b9bc4e43d873869699",
     genre: "Hip-Hop",
     bid: 8,
     clicks: 28,
@@ -35,7 +37,8 @@ export const SEED_SPOTS: Spot[] = [
     trackUrl: "https://open.spotify.com/track/4u7EnebtmKWzUH433cf5Qv",
     title: "Bohemian Rhapsody",
     artist: "Queen",
-    thumbnailUrl: "https://i.scdn.co/image/ab67616d0000b273e8b066f70c206551210d902b",
+    thumbnailUrl:
+      "https://image-cdn-fa.spotifycdn.com/image/ab67616d00001e02e319baafd16e84f0408af2a0",
     genre: "Rock",
     bid: 7,
     clicks: 19,
@@ -47,7 +50,8 @@ export const SEED_SPOTS: Spot[] = [
     trackUrl: "https://open.spotify.com/track/3n3Ppam7vgaVa1iaRUc9Lp",
     title: "Mr. Brightside",
     artist: "The Killers",
-    thumbnailUrl: "https://i.scdn.co/image/ab67616d0000b273ccdddd461266d0969788c87b",
+    thumbnailUrl:
+      "https://image-cdn-fa.spotifycdn.com/image/ab67616d00001e029c284a6855f4945dc5a3cd73",
     genre: "Indie",
     bid: 6,
     clicks: 12,
@@ -55,11 +59,12 @@ export const SEED_SPOTS: Spot[] = [
   },
   {
     id: "s5",
-    trackId: "0DiWol3AO6WpXZgpOgLyZe",
-    trackUrl: "https://open.spotify.com/track/0DiWol3AO6WpXZgpOgLyZe",
+    trackId: "1zi7xx7UVEFkmKfv06H8x0",
+    trackUrl: "https://open.spotify.com/track/1zi7xx7UVEFkmKfv06H8x0",
     title: "One Dance",
     artist: "Drake",
-    thumbnailUrl: "https://i.scdn.co/image/ab67616d0000b273941a0ff38c0c24d5d2af5de0",
+    thumbnailUrl:
+      "https://image-cdn-fa.spotifycdn.com/image/ab67616d00001e029416ed64daf84936d89e671c",
     genre: "R&B",
     bid: 5,
     clicks: 33,
@@ -71,7 +76,8 @@ export const SEED_SPOTS: Spot[] = [
     trackUrl: "https://open.spotify.com/track/0bYg9bo50gSsH3LtXe2SQn",
     title: "All I Want for Christmas Is You",
     artist: "Mariah Carey",
-    thumbnailUrl: "https://i.scdn.co/image/ab67616d0000b273424e98e32cc89067e9c0b4c2",
+    thumbnailUrl:
+      "https://image-cdn-ak.spotifycdn.com/image/ab67616d00001e02c0862332847213b151ffab31",
     genre: "Pop",
     bid: 4,
     clicks: 9,
@@ -83,7 +89,8 @@ export const SEED_SPOTS: Spot[] = [
     trackUrl: "https://open.spotify.com/track/1mea3bSkSGXuIRvnydlB5b",
     title: "Viva La Vida",
     artist: "Coldplay",
-    thumbnailUrl: "https://i.scdn.co/image/ab67616d0000b273e319baafd16e84f0408af2a3",
+    thumbnailUrl:
+      "https://image-cdn-ak.spotifycdn.com/image/ab67616d00001e02e21cc1db05580b6f2d2a3b6e",
     genre: "Rock",
     bid: 3,
     clicks: 15,
@@ -95,7 +102,8 @@ export const SEED_SPOTS: Spot[] = [
     trackUrl: "https://open.spotify.com/track/0pqnGHJpmpxLKifKRmU6WP",
     title: "Believer",
     artist: "Imagine Dragons",
-    thumbnailUrl: "https://i.scdn.co/image/ab67616d0000b2735675e83f707f1d7271e5cf8a",
+    thumbnailUrl:
+      "https://image-cdn-ak.spotifycdn.com/image/ab67616d00001e025675e83f707f1d7271e5cf8a",
     genre: "Rock",
     bid: 2,
     clicks: 22,
@@ -103,11 +111,12 @@ export const SEED_SPOTS: Spot[] = [
   },
   {
     id: "s9",
-    trackId: "1eyz0dQWzGbE1Lc0mNyAIs",
-    trackUrl: "https://open.spotify.com/track/1eyz0dQWzGbE1Lc0mNyAIs",
+    trackId: "6GyFP1nfCDB8lbD2bG0Hq9",
+    trackUrl: "https://open.spotify.com/track/6GyFP1nfCDB8lbD2bG0Hq9",
     title: "Midnight City",
     artist: "M83",
-    thumbnailUrl: "https://i.scdn.co/image/ab67616d0000b27384743b56f6fbd76a51574c80",
+    thumbnailUrl:
+      "https://image-cdn-ak.spotifycdn.com/image/ab67616d00001e0262100064780b1d919a95fcf4",
     genre: "Electronic",
     bid: 2,
     clicks: 7,
@@ -120,7 +129,8 @@ export const SEED_SPOTS: Spot[] = [
     trackUrl: "https://open.spotify.com/track/6habFhsOp2NvshLv26DqMb",
     title: "Despacito",
     artist: "Luis Fonsi",
-    thumbnailUrl: "https://i.scdn.co/image/ab67616d0000b273ef0d4234e1a645740f77d59c",
+    thumbnailUrl:
+      "https://image-cdn-fa.spotifycdn.com/image/ab67616d00001e02ef0d4234e1a645740f77d59c",
     genre: "Latin",
     bid: 1,
     clicks: 18,
@@ -132,7 +142,8 @@ export const SEED_SPOTS: Spot[] = [
     trackUrl: "https://open.spotify.com/track/5HCyWlXZPP0y6Gqq8TgA20",
     title: "Stay",
     artist: "The Kid LAROI, Justin Bieber",
-    thumbnailUrl: "https://i.scdn.co/image/ab67616d0000b27341e31d6ea1cf2471d3d92884",
+    thumbnailUrl:
+      "https://image-cdn-ak.spotifycdn.com/image/ab67616d00001e02aed1660585c1e3c9ffb50b6a",
     genre: "Pop",
     bid: 1,
     clicks: 11,
@@ -144,7 +155,8 @@ export const SEED_SPOTS: Spot[] = [
     trackUrl: "https://open.spotify.com/track/0e7ipj03S05BNilyu5bRzt",
     title: "rockstar",
     artist: "Post Malone",
-    thumbnailUrl: "https://i.scdn.co/image/ab67616d0000b273b1c4b76e23414c9f20242268",
+    thumbnailUrl:
+      "https://image-cdn-ak.spotifycdn.com/image/ab67616d00001e02b1c4b76e23414c9f20242268",
     genre: "Hip-Hop",
     bid: 1,
     clicks: 5,
