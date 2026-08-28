@@ -3,11 +3,21 @@
 import { useEffect, useMemo, useState } from "react";
 import { BoardRow3D, BoardStage } from "@/components/board-stage";
 import { filterSpots, useBoard } from "@/lib/board-context";
-import { useDodoCheckout } from "@/lib/dodo-checkout";
 import { formatMoney, timeAgo } from "@/lib/format";
-import { savePendingBid } from "@/lib/pending-bid";
+import {
+  clearPendingBid,
+  readPendingBid,
+  savePendingBid,
+  type PendingBid,
+} from "@/lib/pending-bid";
+import { PAYPAL_ME_URL } from "@/lib/site";
 import { parseSpotifyTrackId, spotifyEmbedUrl, spotifyTrackUrl } from "@/lib/spotify";
 import { GENRES, type Genre, type TimeFilter } from "@/lib/types";
+
+function paypalCheckoutUrl(amount: number) {
+  const dollars = Math.max(1, Math.round(amount));
+  return `${PAYPAL_ME_URL}/${dollars}`;
+}
 
 export function HomeBoard() {
   const { spots, activity, placeBid, registerClick, listForSale } = useBoard();
@@ -17,32 +27,17 @@ export function HomeBoard() {
   const [url, setUrl] = useState("");
   const [bid, setBid] = useState(1);
   const [selectedGenre, setSelectedGenre] = useState<Exclude<Genre, "All">>("Pop");
-  const [email, setEmail] = useState("");
   const [status, setStatus] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
-  const [paymentsReady, setPaymentsReady] = useState(false);
+  const [pending, setPending] = useState<PendingBid | null>(null);
   const [playingId, setPlayingId] = useState<string | null>(null);
   const [ready, setReady] = useState(false);
-
-  const { openCheckout } = useDodoCheckout({
-    onClosed: () => setBusy(false),
-    onError: (message) => {
-      setBusy(false);
-      setStatus(message);
-    },
-  });
 
   useEffect(() => {
     setReady(true);
     setPlayingId((id) => id ?? spots[0]?.trackId ?? null);
+    setPending(readPendingBid());
   }, [spots]);
-
-  useEffect(() => {
-    fetch("/api/bid/checkout")
-      .then((r) => r.json())
-      .then((d: { configured?: boolean }) => setPaymentsReady(Boolean(d.configured)))
-      .catch(() => setPaymentsReady(false));
-  }, []);
 
   const filtered = useMemo(
     () => filterSpots(spots, genre, time, forSaleOnly),
@@ -52,6 +47,25 @@ export function HomeBoard() {
   const topThree = spots.slice(0, 3);
   const listedCount = spots.filter((s) => s.askingPrice).length;
   const topBid = spots[0]?.bid ?? 0;
+
+  function confirmPaidBid() {
+    const draft = pending ?? readPendingBid();
+    if (!draft) return;
+    const spot = placeBid({
+      trackId: draft.trackId,
+      trackUrl: draft.trackUrl || spotifyTrackUrl(draft.trackId),
+      title: draft.title,
+      artist: draft.artist,
+      thumbnailUrl: draft.thumbnailUrl,
+      genre: draft.genre as Exclude<Genre, "All">,
+      bid: draft.bid,
+      askingPrice: draft.askingPrice,
+    });
+    clearPendingBid();
+    setPending(null);
+    setPlayingId(spot.trackId);
+    setStatus(`You’re on the board at ${formatMoney(spot.bid)} with “${spot.title}”.`);
+  }
 
   async function onBid(e: React.FormEvent) {
     e.preventDefault();
@@ -76,7 +90,7 @@ export function HomeBoard() {
       };
       if (!res.ok || !meta.title) throw new Error(meta.error || "Could not load that song.");
 
-      const pending = {
+      const draft: PendingBid = {
         trackId,
         trackUrl: spotifyTrackUrl(trackId),
         title: meta.title,
@@ -86,38 +100,12 @@ export function HomeBoard() {
         bid,
       };
 
-      const checkoutRes = await fetch("/api/bid/checkout", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          ...pending,
-          email: email.trim() || undefined,
-        }),
-      });
-      const checkout = (await checkoutRes.json()) as {
-        demo?: boolean;
-        checkout_url?: string;
-        error?: string;
-        message?: string;
-      };
-
-      if (!checkoutRes.ok) {
-        throw new Error(checkout.error || "Checkout failed.");
-      }
-
-      if (checkout.demo || !checkout.checkout_url) {
-        const spot = placeBid(pending);
-        setPlayingId(spot.trackId);
-        setStatus(`Demo bid placed at $${spot.bid}. Rank is on PlaylistBid only.`);
-        return;
-      }
-
-      savePendingBid(pending);
-      setStatus("Opening checkout…");
-      await openCheckout(checkout.checkout_url);
+      savePendingBid(draft);
+      setPending(draft);
+      setStatus(`Redirecting to PayPal for ${formatMoney(bid)}…`);
+      window.location.assign(paypalCheckoutUrl(bid));
     } catch (err) {
-      setStatus(err instanceof Error ? err.message : "Could not start checkout.");
-    } finally {
+      setStatus(err instanceof Error ? err.message : "Could not start PayPal checkout.");
       setBusy(false);
     }
   }
@@ -144,11 +132,47 @@ export function HomeBoard() {
 
       {/* 3. Bid form */}
       <section className="mb-10">
+        {pending && (
+          <div className="card mb-4 flex flex-col gap-3 border-(--accent)/35 p-4 sm:flex-row sm:items-center sm:justify-between">
+            <div className="min-w-0">
+              <p className="text-sm font-semibold text-(--accent)">Waiting for PayPal</p>
+              <p className="mt-1 truncate text-sm text-[#b3b3b3]">
+                {pending.title} · {formatMoney(pending.bid)} — after you pay, confirm below.
+              </p>
+            </div>
+            <div className="flex shrink-0 flex-wrap gap-2">
+              <a
+                href={paypalCheckoutUrl(pending.bid)}
+                className="rounded-full bg-[#242424] px-4 py-2 text-sm font-medium hover:bg-[#2a2a2a]"
+              >
+                Open PayPal again
+              </a>
+              <button
+                type="button"
+                className="primary-btn px-4 py-2 text-sm"
+                onClick={confirmPaidBid}
+              >
+                I paid — put me on the board
+              </button>
+              <button
+                type="button"
+                className="px-3 py-2 text-xs text-[#a7a7a7] hover:text-white"
+                onClick={() => {
+                  clearPendingBid();
+                  setPending(null);
+                }}
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        )}
+
         <form onSubmit={onBid} className="card p-5 sm:p-6">
           <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
             <h2 className="text-lg font-bold">Place a bid</h2>
             <span className="text-xs text-[#a7a7a7]">
-              #1 is {formatMoney(topBid)} · {paymentsReady ? "Paid checkout" : "Demo mode"}
+              #1 is {formatMoney(topBid)} · Pay with PayPal
             </span>
           </div>
 
@@ -203,29 +227,15 @@ export function HomeBoard() {
               </select>
             </div>
             <button className="primary-btn h-11 px-6 text-sm" disabled={busy}>
-              {busy
-                ? "Starting…"
-                : paymentsReady
-                  ? `Pay ${formatMoney(bid)}`
-                  : `Bid ${formatMoney(bid)}`}
+              {busy ? "Redirecting…" : `Pay ${formatMoney(bid)} on PayPal`}
             </button>
           </div>
 
-          <div className="mt-3 grid gap-3 sm:grid-cols-2">
-            <div>
-              <label className="label">Email (optional)</label>
-              <input
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="Receipt email"
-                className="field"
-              />
-            </div>
-            <p className="self-end text-xs text-[#a7a7a7] sm:pb-3">
-              Same link again raises your existing bid.
-            </p>
-          </div>
+          <p className="mt-3 text-xs text-[#a7a7a7]">
+            You’ll pay on PayPal, then return here and tap{" "}
+            <span className="text-[#b3b3b3]">I paid — put me on the board</span>. Same
+            link again raises your existing bid.
+          </p>
           {status && (
             <p className="mt-3 rounded-lg bg-[#242424] px-3 py-2 text-sm text-[#b3b3b3]">
               {status}

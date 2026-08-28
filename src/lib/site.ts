@@ -4,6 +4,9 @@ export const SITE_URL =
 
 export const SITE_NAME = "PlaylistBid";
 
+/** PayPal.Me tip/bid checkout — amount appended as /{dollars} */
+export const PAYPAL_ME_URL = "https://paypal.me/YeluruNitish";
+
 export const SITE_DESCRIPTION =
   "PlaylistBid is a song bidding leaderboard. Paste a public track link, bid for rank, and put your favorite song at the top of this independent music billboard. Not affiliated with Spotify.";
 

@@ -11,13 +11,18 @@ export type PendingBid = {
 
 const PENDING_KEY = "playlistbid-pending-bid";
 
+function storage(): Storage | null {
+  if (typeof window === "undefined") return null;
+  return window.localStorage;
+}
+
 export function savePendingBid(bid: PendingBid) {
-  sessionStorage.setItem(PENDING_KEY, JSON.stringify(bid));
+  storage()?.setItem(PENDING_KEY, JSON.stringify(bid));
 }
 
 export function readPendingBid(): PendingBid | null {
   try {
-    const raw = sessionStorage.getItem(PENDING_KEY);
+    const raw = storage()?.getItem(PENDING_KEY);
     if (!raw) return null;
     return JSON.parse(raw) as PendingBid;
   } catch {
@@ -26,5 +31,5 @@ export function readPendingBid(): PendingBid | null {
 }
 
 export function clearPendingBid() {
-  sessionStorage.removeItem(PENDING_KEY);
+  storage()?.removeItem(PENDING_KEY);
 }
