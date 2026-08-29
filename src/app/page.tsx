@@ -13,8 +13,8 @@ const CONDITIONS = [
     body: "Taking track 3 pushes the old track 3 to track 4, and so on down. Nobody drops two slots at once.",
   },
   {
-    title: "You confirm your own payment",
-    body: "Pay with PayPal or, in India, UPI. Come back and press “I paid”. Nothing is written on the tape until you confirm it.",
+    title: "The price decides the position",
+    body: "The tape is ordered by price, highest first. Pay for a slot and the song is written on straight away — PayPal, or UPI in India, opens right after.",
   },
   {
     title: "The same link moves up, never repeats",

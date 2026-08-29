@@ -1,7 +1,8 @@
 "use client";
 
 import { CoverArt } from "@/components/cover-art";
-import { formatInt, formatUsd, timeAgo } from "@/lib/format";
+import { TimeAgo } from "@/components/time-ago";
+import { formatInt, formatUsd } from "@/lib/format";
 import { useNowPlaying } from "@/lib/now-playing";
 import { sideOf, trackOnSide } from "@/lib/ranks";
 import { spotifyEmbedUrl } from "@/lib/spotify";
@@ -75,7 +76,9 @@ export function LotStrip({ spot, rank, move, onTake, onOpen }: LotStripProps) {
         </div>
 
         <div className="hidden text-right md:block">
-          <p className="tnum text-xs chrome">{timeAgo(spot.raisedAt)}</p>
+          <p className="tnum text-xs chrome">
+            <TimeAgo ts={spot.raisedAt} />
+          </p>
           <p className="slip slip-quiet text-[0.625rem]">{note ?? "held"}</p>
         </div>
 
@@ -135,7 +138,7 @@ export function BlockLot({ spot, runnerUp, onTake, onOpen }: BlockLotProps) {
           </h2>
           <p className="strip-artist mt-1.5 text-[0.75rem] whitespace-normal">
             {spot.artist} · {spot.genre} · {formatInt(spot.clicks)} plays · last
-            moved {timeAgo(spot.raisedAt)}
+            moved <TimeAgo ts={spot.raisedAt} />
           </p>
           <div className="mt-3.5 max-w-md">
             <iframe

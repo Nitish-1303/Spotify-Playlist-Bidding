@@ -27,8 +27,8 @@ const CONDITIONS = [
     body: "The tape is ordered by price, highest first. When two songs carry the same price the one written on earlier stays above — which is what makes a bought slot land exactly where you paid.",
   },
   {
-    head: "You confirm your own payment",
-    body: "Pay with PayPal or UPI, come back, and press “I paid — put it on the tape”. Until then it is a draft in your browser and nothing is written on.",
+    head: "The song is written on as you pay",
+    body: "Picking a slot writes the song onto the tape at that price and then opens PayPal, or UPI in India. There is no confirmation step to come back to — position always follows the price.",
   },
   {
     head: "The same link moves up, never repeats",

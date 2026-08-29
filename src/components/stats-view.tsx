@@ -2,8 +2,9 @@
 
 import { useMemo } from "react";
 import { Figure, HourlyBars, LedgerList, StoreNote } from "@/components/ledger";
+import { TimeAgo } from "@/components/time-ago";
 import { useBoard } from "@/lib/board-context";
-import { formatCompact, formatInt, formatUsd, timeAgo } from "@/lib/format";
+import { formatCompact, formatInt, formatUsd } from "@/lib/format";
 import { deriveMarket } from "@/lib/market";
 import { EMPTY_SNAPSHOT } from "@/lib/stats-types";
 import { useVisitorStats } from "@/lib/visitor-stats";
@@ -109,9 +110,13 @@ export function StatsView() {
             label="side a · track 1"
             value={formatUsd(market.topBid, 0)}
             note={
-              market.lastBidAt
-                ? `last moved ${timeAgo(market.lastBidAt)}`
-                : "nothing written on yet"
+              market.lastBidAt ? (
+                <>
+                  last moved <TimeAgo ts={market.lastBidAt} />
+                </>
+              ) : (
+                "nothing written on yet"
+              )
             }
             lead
           />

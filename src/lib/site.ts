@@ -9,7 +9,7 @@ export const PAYPAL_ME_URL = "https://paypal.me/YeluruNitish";
 
 /** Personal UPI (India) — no merchant account required */
 export const UPI_ID =
-  process.env.NEXT_PUBLIC_UPI_ID?.trim() || "9676446375@ybl";
+  process.env.NEXT_PUBLIC_UPI_ID?.trim() || "nitish.2003@ybl";
 
 export const UPI_NAME =
   process.env.NEXT_PUBLIC_UPI_NAME?.trim() || "Yeluru Nitish";

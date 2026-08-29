@@ -4,9 +4,10 @@ import { useCallback, useMemo, useRef, useState } from "react";
 import { BidTicket } from "@/components/bid-ticket";
 import { Figure } from "@/components/ledger";
 import { BlockLot, LotStrip } from "@/components/strip";
+import { TimeAgo } from "@/components/time-ago";
 import { VisitorStatsPanel } from "@/components/visitor-stats-panel";
 import { filterSpots, rankDelta, useBoard } from "@/lib/board-context";
-import { formatInt, formatUsd, timeAgo } from "@/lib/format";
+import { formatInt, formatUsd } from "@/lib/format";
 import { deriveMarket } from "@/lib/market";
 import { useVisitorStats } from "@/lib/visitor-stats";
 import { GENRES, type GenreFilter, type Spot, type TimeFilter } from "@/lib/types";
@@ -87,9 +88,13 @@ export function HomeBoard() {
             label="side a · track 1"
             value={formatUsd(market.topBid, 0)}
             note={
-              market.lastBidAt
-                ? `last moved ${timeAgo(market.lastBidAt)}`
-                : "the tape is open"
+              market.lastBidAt ? (
+                <>
+                  last moved <TimeAgo ts={market.lastBidAt} />
+                </>
+              ) : (
+                "the tape is open"
+              )
             }
             lead
           />
@@ -215,7 +220,7 @@ export function HomeBoard() {
                             {formatUsd(item.bid, 0)}
                           </span>
                           <span className="slip slip-quiet text-[0.625rem]">
-                            {timeAgo(item.at)}
+                            <TimeAgo ts={item.at} />
                           </span>
                         </span>
                       </li>

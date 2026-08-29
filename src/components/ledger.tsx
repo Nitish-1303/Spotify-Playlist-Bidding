@@ -1,5 +1,6 @@
 "use client";
 
+import type { ReactNode } from "react";
 import { formatCompact, formatInt, hourLabel } from "@/lib/format";
 import type { StatPoint, StatsSnapshot } from "@/lib/stats-types";
 
@@ -12,7 +13,7 @@ export function Figure({
 }: {
   label: string;
   value: string;
-  note?: string;
+  note?: ReactNode;
   lead?: boolean;
 }) {
   return (

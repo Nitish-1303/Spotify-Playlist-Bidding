@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { PayPalMark, UpiMark } from "@/components/pay-marks";
 import { useBoard } from "@/lib/board-context";
 import { formatUsd } from "@/lib/format";
@@ -11,12 +11,6 @@ import {
   type PaymentMethod,
 } from "@/lib/payments";
 import {
-  clearPendingBid,
-  readPendingBid,
-  savePendingBid,
-  type PendingBid,
-} from "@/lib/pending-bid";
-import {
   chartOrder,
   openRanks,
   priceForRank,
@@ -24,6 +18,7 @@ import {
   sideOf,
   trackOnSide,
 } from "@/lib/ranks";
+import { saveReceipt } from "@/lib/receipt";
 import { UPI_ID, USD_TO_INR } from "@/lib/site";
 import { parseSpotifyTrackId, spotifyTrackUrl } from "@/lib/spotify";
 import { GENRES, type Genre, type Spot } from "@/lib/types";
@@ -42,9 +37,9 @@ export function slotLabel(rank: number) {
 }
 
 /**
- * The paddle: paste a song, pick the track position you want, pay what that
- * position costs, then confirm. The price is never typed in — it is whatever
- * it takes to sit where you pointed.
+ * The paddle: paste a song, pick the track position you want, and pay what that
+ * position costs. The price is never typed in — it is whatever it takes to sit
+ * where you pointed, and where it sits follows from the price.
  */
 export function BidTicket({
   targetRank,
@@ -58,13 +53,8 @@ export function BidTicket({
   const [method, setMethod] = useState<PaymentMethod>("paypal");
   const [status, setStatus] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
-  const [pending, setPending] = useState<PendingBid | null>(null);
   const localRef = useRef<HTMLFormElement>(null);
   const ref = formRef ?? localRef;
-
-  useEffect(() => {
-    setPending(readPendingBid());
-  }, []);
 
   // Once a valid link is in the box we know which song this is, so the board is
   // priced as if that song were lifted off the tape first.
@@ -89,34 +79,6 @@ export function BidTicket({
   const rank = slots.includes(targetRank) ? targetRank : (slots[0] ?? 1);
   const bid = priceForRank(spots, rank, draftId);
   const inr = bidToInr(bid);
-
-  function confirmPaid() {
-    const draft = pending ?? readPendingBid();
-    if (!draft) return;
-    const { spot, spots: after } = placeBid({
-      trackId: draft.trackId,
-      trackUrl: draft.trackUrl || spotifyTrackUrl(draft.trackId),
-      title: draft.title,
-      artist: draft.artist,
-      thumbnailUrl: draft.thumbnailUrl,
-      genre: draft.genre as Exclude<Genre, "All">,
-      bid: draft.bid,
-      askingPrice: draft.askingPrice,
-    });
-
-    // Work out where it actually landed rather than assuming it obeyed.
-    const landed = rankOf(after, spot.trackId) ?? draft.targetRank ?? 1;
-
-    clearPendingBid();
-    setPending(null);
-    setUrl("");
-    setStatus(
-      draft.targetRank && landed < draft.targetRank
-        ? `On the tape. ${spot.title} landed at ${slotLabel(landed)} — one better than the ${slotLabel(draft.targetRank)} you paid for.`
-        : `On the tape. ${spot.title} is ${slotLabel(landed)} at ${formatUsd(spot.bid, 0)}.`,
-    );
-    onConfirmed(spot);
-  }
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
@@ -144,7 +106,9 @@ export function BidTicket({
         throw new Error(meta.error || "Could not load that track.");
       }
 
-      const draft: PendingBid = {
+      // The song goes on the tape at the price being paid, and the price is what
+      // decides the position. No confirmation step in between.
+      const { spot, spots: after } = placeBid({
         trackId,
         trackUrl: spotifyTrackUrl(trackId),
         title: meta.title,
@@ -152,21 +116,31 @@ export function BidTicket({
         thumbnailUrl: meta.thumbnailUrl || "",
         genre,
         bid,
+      });
+      const landed = rankOf(after, spot.trackId) ?? rank;
+
+      saveReceipt({
+        trackId,
+        trackUrl: spot.trackUrl,
+        title: spot.title,
+        artist: spot.artist,
+        bid: spot.bid,
         targetRank: rank,
+        landedRank: landed,
         method,
-      };
-      savePendingBid(draft);
-      setPending(draft);
+      });
 
-      if (method === "upi") {
-        setStatus(`Pay ${formatInr(inr)} in your UPI app, then press “I paid”.`);
-        window.location.assign(paymentCheckoutUrl("upi", bid));
-        setBusy(false);
-        return;
-      }
+      setUrl("");
+      onConfirmed(spot);
+      setStatus(
+        `${spot.title} is on the tape at ${slotLabel(landed)}. ${
+          method === "upi"
+            ? `Send ${formatInr(inr)} to ${UPI_ID} to keep it there.`
+            : `Pay ${formatUsd(spot.bid, 0)} on PayPal to keep it there.`
+        }`,
+      );
 
-      setStatus(`Opening PayPal for ${formatUsd(bid, 0)}…`);
-      window.location.assign(paymentCheckoutUrl("paypal", bid));
+      window.location.assign(paymentCheckoutUrl(method, bid));
     } catch (err) {
       setStatus(err instanceof Error ? err.message : "Could not open checkout.");
       setBusy(false);
@@ -190,46 +164,6 @@ export function BidTicket({
         </h2>
         <span className="paddle-no">{slotLabel(rank)}</span>
       </div>
-
-      {pending && (
-        <div className="notice m-4 mb-0">
-          <p className="slip" style={{ color: "var(--hammer)" }}>
-            waiting on your payment
-          </p>
-          <p className="mt-1.5 flex flex-wrap items-center gap-2 text-sm">
-            {pending.method === "upi" ? <UpiMark /> : <PayPalMark />}
-            <span>
-              {pending.title} for{" "}
-              {pending.targetRank ? slotLabel(pending.targetRank) : "the tape"} —{" "}
-              {formatUsd(pending.bid, 0)}
-              {pending.method === "upi"
-                ? ` (${formatInr(bidToInr(pending.bid))} to ${UPI_ID})`
-                : ""}
-            </span>
-          </p>
-          <div className="mt-3 flex flex-wrap gap-2">
-            <button type="button" className="btn btn-hammer" onClick={confirmPaid}>
-              I paid — put it on the tape
-            </button>
-            <a
-              className="btn"
-              href={paymentCheckoutUrl(pending.method ?? "paypal", pending.bid)}
-            >
-              Reopen {pending.method === "upi" ? "UPI" : "PayPal"}
-            </a>
-            <button
-              type="button"
-              className="btn btn-ghost"
-              onClick={() => {
-                clearPendingBid();
-                setPending(null);
-              }}
-            >
-              Discard
-            </button>
-          </div>
-        </div>
-      )}
 
       <form ref={ref} onSubmit={submit} className="paddle-bd space-y-4">
         <div>
@@ -375,7 +309,7 @@ export function BidTicket({
           )}{" "}
           A position costs a dollar more than whoever holds it. Pay it and the
           song takes that slot; everything from there down shifts one track
-          later. Nothing moves until you come back and press “I paid”.
+          later. Position always follows the price.
         </p>
       </form>
     </section>
