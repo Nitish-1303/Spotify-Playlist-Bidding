@@ -28,7 +28,7 @@ const CONDITIONS = [
   },
   {
     head: "The song is written on as you pay",
-    body: "Picking a slot writes the song onto the tape at that price and then opens PayPal, or UPI in India. There is no confirmation step to come back to — position always follows the price.",
+    body: "Picking a slot writes the song onto the tape at that price and then opens the card checkout. There is no confirmation step to come back to — position always follows the price.",
   },
   {
     head: "The same link moves up, never repeats",
@@ -88,8 +88,9 @@ export default function RulesPage() {
 
         <p className="max-w-3xl text-xs leading-relaxed chrome">
           PlaylistBid is not affiliated with, endorsed by, or connected to Spotify
-          AB. Spotify is a trademark of Spotify AB. Payments are handled by PayPal
-          or your own UPI app — we never see your card or bank details.
+          AB. Spotify is a trademark of Spotify AB. Payments are handled by Dodo
+          Payments on their own hosted checkout — we never see your card
+          details.
         </p>
       </main>
       <SiteFooter />

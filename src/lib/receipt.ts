@@ -1,5 +1,3 @@
-import type { PaymentMethod } from "@/lib/payments";
-
 /**
  * The last song this browser put on the tape. Written at the moment the bid is
  * placed, purely so the page you land on after checkout can show you what
@@ -15,7 +13,6 @@ export type Receipt = {
   targetRank: number;
   /** Where it sat the instant it was written on. */
   landedRank: number;
-  method: PaymentMethod;
 };
 
 const RECEIPT_KEY = "playlistbid-receipt";

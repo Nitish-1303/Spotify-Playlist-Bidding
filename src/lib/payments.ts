@@ -1,36 +1,58 @@
-import { PAYPAL_ME_URL, UPI_ID, UPI_NAME, USD_TO_INR } from "@/lib/site";
+/**
+ * Checkout lives behind our own API route: the browser asks for a session, the
+ * server talks to Dodo Payments with the secret key and hands back a hosted
+ * checkout URL. The amount is never taken from the client's word alone — the
+ * route re-derives it from the bid it was sent and rejects anything under $1.
+ */
 
-export type PaymentMethod = "paypal" | "upi";
+export type CheckoutRequest = {
+  trackId: string;
+  bid: number;
+  title: string;
+  artist: string;
+  thumbnailUrl: string;
+  genre: string;
+  /** The track position being bought, carried into Dodo's metadata. */
+  targetRank: number;
+};
 
-export function paypalCheckoutUrl(amountUsd: number) {
-  const dollars = Math.max(1, Math.round(amountUsd));
-  return `${PAYPAL_ME_URL}/${dollars}`;
-}
+export type CheckoutSession = {
+  checkoutUrl: string;
+  sessionId?: string;
+};
 
-/** Convert board USD bid to INR for personal UPI intents. */
-export function bidToInr(amountUsd: number) {
-  const dollars = Math.max(1, Math.round(amountUsd));
-  return Math.max(1, Math.round(dollars * USD_TO_INR));
-}
+/** Thrown when Dodo has not been given keys yet, so nothing can be charged. */
+export class CheckoutNotConfiguredError extends Error {}
 
-export function formatInr(amountInr: number) {
-  return `₹${amountInr.toLocaleString("en-IN")}`;
-}
-
-export function upiCheckoutUrl(amountUsd: number, note?: string) {
-  const am = bidToInr(amountUsd).toFixed(2);
-  const params = new URLSearchParams({
-    pa: UPI_ID,
-    pn: UPI_NAME,
-    am,
-    cu: "INR",
-    tn: note || `PlaylistBid bid $${Math.round(amountUsd)}`,
+/**
+ * Ask the server for a Dodo checkout session. Resolves with the URL to send the
+ * payer to, or throws with a message fit to show on the paddle.
+ */
+export async function createCheckoutSession(
+  input: CheckoutRequest,
+): Promise<CheckoutSession> {
+  const res = await fetch("/api/bid/checkout", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(input),
   });
-  return `upi://pay?${params.toString()}`;
-}
 
-export function paymentCheckoutUrl(method: PaymentMethod, amountUsd: number) {
-  return method === "upi"
-    ? upiCheckoutUrl(amountUsd)
-    : paypalCheckoutUrl(amountUsd);
+  const data = (await res.json()) as {
+    checkout_url?: string;
+    session_id?: string;
+    error?: string;
+    unconfigured?: boolean;
+    message?: string;
+  };
+
+  if (data.unconfigured) {
+    throw new CheckoutNotConfiguredError(
+      data.message || "Card payments are not switched on yet.",
+    );
+  }
+  if (!res.ok || !data.checkout_url) {
+    throw new Error(data.error || "Could not open checkout. Try again.");
+  }
+
+  return { checkoutUrl: data.checkout_url, sessionId: data.session_id };
 }

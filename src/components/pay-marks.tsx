@@ -1,52 +1,36 @@
 /**
- * Brand marks for the two ways to pay, drawn inline so the payment step
- * shows the real logos without a third-party network request.
- * Colours are the published brand values; shapes are stylised.
+ * The payment mark on the paddle. Drawn inline so the payment step needs no
+ * third-party network request. This is a generic card glyph next to the Dodo
+ * Payments wordmark rather than their registered logo — swap in the official
+ * SVG here if you want the exact brand asset.
  */
-
-/** Solid "P" with its counter punched out — the PayPal monogram glyph. */
-const P_GLYPH =
-  "M2 1H8.6A5 5 0 0 1 8.6 11H5.6V20H2ZM5.6 4V8H8.1A2 2 0 0 0 8.1 4Z";
-
-export function PayPalMark() {
+export function DodoMark() {
   return (
     <span className="paymark">
       <svg
-        viewBox="0 0 26 22"
-        width="21"
+        viewBox="0 0 26 20"
+        width="24"
         height="18"
         role="img"
-        aria-label="PayPal"
+        aria-label="Card payment"
         focusable="false"
       >
-        <path d={P_GLYPH} fill="#003087" fillRule="evenodd" transform="translate(0 2)" />
-        <path d={P_GLYPH} fill="#009cde" fillRule="evenodd" transform="translate(7 0)" />
+        <rect
+          x="0.75"
+          y="0.75"
+          width="24.5"
+          height="18.5"
+          rx="2.75"
+          fill="#ffffff"
+          stroke="#1c1c1c"
+          strokeWidth="1.5"
+        />
+        <rect x="0.75" y="4.5" width="24.5" height="3.5" fill="#1c1c1c" />
+        <rect x="3.5" y="11.5" width="9" height="2" rx="1" fill="#1c1c1c" />
+        <rect x="3.5" y="15" width="5.5" height="1.5" rx="0.75" fill="#8a8a8a" />
       </svg>
       <span className="paymark-word" aria-hidden>
-        <b style={{ color: "#253b80" }}>Pay</b>
-        <b style={{ color: "#179bd7" }}>Pal</b>
-      </span>
-    </span>
-  );
-}
-
-export function UpiMark() {
-  return (
-    <span className="paymark">
-      {/* The UPI arrow device: saffron over green, as on the NPCI mark. */}
-      <svg
-        viewBox="0 0 20 22"
-        width="16"
-        height="18"
-        role="img"
-        aria-label="UPI"
-        focusable="false"
-      >
-        <path d="M1 1h6.4l5.2 10L7.4 21H1l5.2-10Z" fill="#ff7b00" />
-        <path d="M8.6 1H15l5 10-5 10H8.6l5-10Z" fill="#0b8a3e" />
-      </svg>
-      <span className="paymark-word" aria-hidden>
-        <b style={{ color: "#0c2d5a" }}>UPI</b>
+        <b>Dodo Payments</b>
       </span>
     </span>
   );

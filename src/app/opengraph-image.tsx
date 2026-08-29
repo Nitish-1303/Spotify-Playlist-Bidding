@@ -127,7 +127,7 @@ export default function OpenGraphImage() {
                   textTransform: "uppercase",
                 }}
               >
-                A dollar clear of the holder · PayPal or UPI · live liner notes
+                A dollar clear of the holder · card checkout · live liner notes
               </div>
             </div>
             <div style={{ fontSize: 52, fontWeight: 800, color: HAMMER }}>$1+</div>

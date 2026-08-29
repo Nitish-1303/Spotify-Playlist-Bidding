@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Logo } from "@/components/logo";
 import { formatInt } from "@/lib/format";
-import { PAYPAL_ME_URL, SITE_NAME } from "@/lib/site";
+import { SITE_NAME } from "@/lib/site";
 import { useVisitorStats } from "@/lib/visitor-stats";
 
 const NAV = [
@@ -78,14 +78,6 @@ export function SiteFooter() {
                 {item.label}
               </Link>
             ))}
-            <a
-              href={PAYPAL_ME_URL}
-              target="_blank"
-              rel="noreferrer"
-              className="nav"
-            >
-              Support
-            </a>
           </div>
         </div>
         <div className="stamp">

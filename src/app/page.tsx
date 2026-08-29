@@ -14,7 +14,7 @@ const CONDITIONS = [
   },
   {
     title: "The price decides the position",
-    body: "The tape is ordered by price, highest first. Pay for a slot and the song is written on straight away — PayPal, or UPI in India, opens right after.",
+    body: "The tape is ordered by price, highest first. Pay for a slot and the song is written on straight away — card checkout opens right after.",
   },
   {
     title: "The same link moves up, never repeats",

@@ -863,17 +863,21 @@ textarea {
   border: 1.5px solid var(--edge);
   border-radius: 3px;
   background: var(--strip);
-  cursor: pointer;
   text-align: left;
   transition: border-color 0.14s ease, box-shadow 0.14s ease;
 }
 
-.pay:hover {
+/* Only a .pay that is actually a control reads as clickable. */
+button.pay {
+  cursor: pointer;
+}
+
+button.pay:hover {
   border-color: var(--ink);
 }
 
 .pay.pay-on,
-.pay.pay-on:hover {
+button.pay.pay-on:hover {
   border-color: var(--hammer);
   border-width: 2px;
   box-shadow: inset 0 -3px 0 var(--hammer-wash);
