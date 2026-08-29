@@ -7,9 +7,25 @@ type CoverArtProps = {
   src: string;
   alt?: string;
   className?: string;
+  /** Render as a button so the artwork itself is a control. */
+  as?: "img" | "button";
+  onClick?: () => void;
+  title?: string;
 };
 
-export function CoverArt({ trackId, src, alt = "", className }: CoverArtProps) {
+/**
+ * Spotify's CDN occasionally 404s a cached thumbnail. One silent re-fetch
+ * through /api/track recovers it; after that we show the record glyph.
+ */
+export function CoverArt({
+  trackId,
+  src,
+  alt = "",
+  className,
+  as = "img",
+  onClick,
+  title,
+}: CoverArtProps) {
   const [url, setUrl] = useState(src);
   const [failed, setFailed] = useState(!src);
   const [retried, setRetried] = useState(false);
@@ -35,30 +51,45 @@ export function CoverArt({ trackId, src, alt = "", className }: CoverArtProps) {
         return;
       }
     } catch {
-      // fall through
+      // fall through to the glyph
     }
     setFailed(true);
   }
 
-  if (failed || !url) {
-    return (
-      <span className={`grid place-items-center bg-[#242424] text-[var(--accent)] ${className ?? ""}`}>
-        ♪
+  const inner =
+    failed || !url ? (
+      <span
+        className="grid h-full w-full place-items-center press"
+        style={{ background: "var(--press-wash)" }}
+        aria-hidden
+      >
+        ◎
       </span>
+    ) : (
+      // eslint-disable-next-line @next/next/no-img-element
+      <img
+        src={url}
+        alt={as === "button" ? "" : alt}
+        className="h-full w-full object-cover"
+        loading="lazy"
+        referrerPolicy="no-referrer"
+        onError={() => {
+          void recover();
+        }}
+      />
+    );
+
+  if (as === "button") {
+    return (
+      <button type="button" className={className} onClick={onClick} title={title}>
+        {inner}
+      </button>
     );
   }
 
   return (
-    // eslint-disable-next-line @next/next/no-img-element
-    <img
-      src={url}
-      alt={alt}
-      className={className}
-      loading="lazy"
-      referrerPolicy="no-referrer"
-      onError={() => {
-        void recover();
-      }}
-    />
+    <span className={className} role="img" aria-label={alt || undefined}>
+      {inner}
+    </span>
   );
 }

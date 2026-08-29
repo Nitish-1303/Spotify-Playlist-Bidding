@@ -44,5 +44,10 @@ export type Activity = {
 export type BoardState = {
   spots: Spot[];
   activity: Activity[];
-  online: number;
+  /**
+   * Rank each spot held immediately before the most recent confirmed bid,
+   * keyed by spot id. Drives the ▲/▼ rank-change column — a real movement,
+   * not a decoration.
+   */
+  prevRanks: Record<string, number>;
 };

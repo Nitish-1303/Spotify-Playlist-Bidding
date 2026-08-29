@@ -1,8 +1,8 @@
 import "./globals.css";
-import type { Metadata } from "next";
-import { Analytics } from "@vercel/analytics/next";
-import { Inter } from "next/font/google";
+import type { Metadata, Viewport } from "next";import { Analytics } from "@vercel/analytics/next";
+import { Anton, Courier_Prime, Instrument_Sans } from "next/font/google";
 import { BoardProvider } from "@/lib/board-context";
+import { VisitorStatsProvider } from "@/lib/visitor-stats";
 import {
   SITE_DESCRIPTION,
   SITE_KEYWORDS,
@@ -10,9 +10,25 @@ import {
   SITE_URL,
 } from "@/lib/site";
 
-const inter = Inter({
+/** Marquee face — hammer prices, lot numbers, headlines only. */
+const marquee = Anton({
   subsets: ["latin"],
-  variable: "--font-sans",
+  weight: "400",
+  variable: "--font-marquee",
+  display: "swap",
+});
+
+const body = Instrument_Sans({
+  subsets: ["latin"],
+  variable: "--font-body",
+  display: "swap",
+});
+
+/** Typed consignment-slip face for labels, counts and ledger columns. */
+const slip = Courier_Prime({
+  subsets: ["latin"],
+  weight: ["400", "700"],
+  variable: "--font-slip",
   display: "swap",
 });
 
@@ -62,15 +78,25 @@ export const metadata: Metadata = {
   },
 };
 
+export const viewport: Viewport = {
+  themeColor: "#efeee8",
+};
+
 export default function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className={inter.variable} suppressHydrationWarning>
-      <body className={inter.className} suppressHydrationWarning>
-        <BoardProvider>{children}</BoardProvider>
+    <html
+      lang="en"
+      className={`${marquee.variable} ${body.variable} ${slip.variable}`}
+      suppressHydrationWarning
+    >
+      <body className={body.className} suppressHydrationWarning>
+        <BoardProvider>
+          <VisitorStatsProvider>{children}</VisitorStatsProvider>
+        </BoardProvider>
         <Analytics />
       </body>
     </html>

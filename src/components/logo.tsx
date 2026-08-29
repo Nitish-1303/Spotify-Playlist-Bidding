@@ -1,44 +1,29 @@
 import Link from "next/link";
+import { SITE_NAME } from "@/lib/site";
 
-type LogoProps = {
-  size?: "sm" | "md";
-  href?: string | null;
-  className?: string;
-};
-
-function NoteMark({ size }: { size: "sm" | "md" }) {
-  const px = size === "md" ? 36 : 28;
+/**
+ * A jukebox selection button: the letter-number pair you press to play a
+ * record. Here it stands for the lot you are bidding on.
+ */
+export function Logo({ compact = false }: { compact?: boolean }) {
   return (
-    <svg
-      width={px}
-      height={px}
-      viewBox="0 0 32 32"
-      fill="none"
-      aria-hidden="true"
-      className="shrink-0"
+    <Link
+      href="/"
+      className="flex shrink-0 items-center gap-2.5"
+      aria-label={`${SITE_NAME} home`}
     >
-      <rect width="32" height="32" rx="8" fill="#2dd4bf" />
-      <path
-        d="M20.5 7.5v11.2a3.4 3.4 0 1 1-1.7-2.95V11.2l-7.3 1.55v8.45a3.4 3.4 0 1 1-1.7-2.95V10.1l10.7-2.6Z"
-        fill="#042f2e"
-      />
-    </svg>
-  );
-}
-
-export function Logo({ size = "sm", href = "/", className = "" }: LogoProps) {
-  const textClass = size === "md" ? "text-xl" : "text-base";
-  const content = (
-    <span className={`inline-flex items-center gap-2.5 font-semibold tracking-tight ${className}`}>
-      <NoteMark size={size} />
-      <span className={textClass}>PlaylistBid</span>
-    </span>
-  );
-
-  if (href === null) return content;
-  return (
-    <Link href={href} className="text-white hover:opacity-90">
-      {content}
+      <span
+        aria-hidden
+        className="marquee grid h-8 w-8 place-items-center rounded-[3px] text-[0.9375rem] text-white"
+        style={{ background: "var(--hammer)" }}
+      >
+        B1
+      </span>
+      {!compact && (
+        <span className="marquee text-[1.0625rem] leading-none tracking-[0.01em]">
+          Playlist<span className="hammer">Bid</span>
+        </span>
+      )}
     </Link>
   );
 }

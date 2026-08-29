@@ -1,40 +1,47 @@
 "use client";
 
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { Logo } from "@/components/logo";
-import { useBoard } from "@/lib/board-context";
+import { formatInt } from "@/lib/format";
+import { PAYPAL_ME_URL, SITE_NAME } from "@/lib/site";
+import { useVisitorStats } from "@/lib/visitor-stats";
+
+const NAV = [
+  { href: "/", label: "The rack" },
+  { href: "/stats", label: "Ledger" },
+  { href: "/rules", label: "Conditions" },
+] as const;
 
 export function SiteHeader() {
-  const { spots, online } = useBoard();
-  const totalClicks = spots.reduce((sum, s) => sum + s.clicks, 0);
+  const pathname = usePathname();
+  const { stats } = useVisitorStats();
+  const live = stats?.liveNow;
 
   return (
-    <header className="sticky top-0 z-30 border-b border-white/8 bg-[#121212]/95 backdrop-blur-md">
-      <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-3 px-4 py-3 sm:px-6">
-        <div className="flex min-w-0 flex-wrap items-center gap-4 sm:gap-6">
+    <header className="masthead">
+      <div className="rack flex h-16 items-center justify-between gap-4">
+        <div className="flex min-w-0 items-center gap-6 sm:gap-9">
           <Logo />
-          <nav className="flex flex-wrap items-center gap-3 text-sm text-[#b3b3b3] sm:gap-4">
-            <Link href="/#board" className="hover:text-white">
-              Leaderboard
-            </Link>
-            <Link href="/#categories" className="hover:text-white">
-              Categories
-            </Link>
-            <Link href="/#about" className="hover:text-white">
-              About
-            </Link>
-            <Link href="/rules" className="hover:text-white">
-              Rules
-            </Link>
+          <nav className="hidden items-center gap-6 sm:flex">
+            {NAV.map((item) => (
+              <Link
+                key={item.href}
+                href={item.href}
+                className={`nav ${pathname === item.href ? "nav-on" : ""}`}
+              >
+                {item.label}
+              </Link>
+            ))}
           </nav>
         </div>
-        <p className="text-xs text-[#a7a7a7] sm:text-sm">
-          <span className="text-white">{online}</span> online
-          <span className="mx-1.5 text-white/20">·</span>
-          <span className="text-white">{totalClicks.toLocaleString()}</span> clicks
-          <span className="mx-1.5 text-white/20">·</span>
-          <span className="text-(--accent)">live board</span>
-        </p>
+
+        <Link href="/stats" className="live shrink-0" title="Visitors in the room now">
+          <span className="live-dot" aria-hidden />
+          <span className="slip" style={{ color: "var(--hammer)" }}>
+            {typeof live === "number" ? formatInt(live) : "—"} in the room
+          </span>
+        </Link>
       </div>
     </header>
   );
@@ -42,35 +49,32 @@ export function SiteHeader() {
 
 export function SiteFooter() {
   return (
-    <footer className="mt-16 border-t border-white/8">
-      <div className="mx-auto max-w-6xl space-y-4 px-4 py-8 sm:px-6">
-        <div className="flex flex-wrap items-center justify-between gap-4">
-          <Logo size="sm" />
-          <div className="flex flex-wrap gap-5 text-sm text-[#a7a7a7]">
-            <Link href="/#board" className="hover:text-white">
-              Leaderboard
-            </Link>
-            <Link href="/rules" className="hover:text-white">
-              Rules
-            </Link>
+    <footer className="mt-16 border-t-2" style={{ borderColor: "var(--press)" }}>
+      <div className="rack space-y-6 py-9">
+        <div className="flex flex-wrap items-center justify-between gap-5">
+          <Logo />
+          <div className="flex flex-wrap items-center gap-6">
+            {NAV.map((item) => (
+              <Link key={item.href} href={item.href} className="nav">
+                {item.label}
+              </Link>
+            ))}
             <a
-              href="https://paypal.me/YeluruNitish"
+              href={PAYPAL_ME_URL}
               target="_blank"
               rel="noreferrer"
-              className="hover:text-white"
+              className="nav"
             >
               Support
             </a>
-            <a href="mailto:hello@playlistbid.local" className="hover:text-white">
-              Contact
-            </a>
           </div>
         </div>
-        <p className="max-w-3xl text-xs leading-relaxed text-[#a7a7a7]">
-          PlaylistBid is an independent fan billboard. It is not affiliated with,
-          endorsed by, or connected to Spotify AB. Song names, artwork, and
-          playback come from Spotify’s public oEmbed and official player. Ranking
-          here does not change Spotify playlists, charts, or streams.
+        <p className="max-w-3xl text-xs leading-relaxed chrome">
+          {SITE_NAME} is an independent fan billboard. It is not affiliated with,
+          endorsed by, or connected to Spotify AB. Titles, artwork and playback
+          come from Spotify&apos;s public oEmbed endpoint and official embedded
+          player. A lot number here is a position on this site — it does not
+          change Spotify playlists, charts or streams.
         </p>
       </div>
     </footer>

@@ -12,39 +12,51 @@ import { startOfDay } from "./format";
 import { SEED_ACTIVITY, SEED_SPOTS } from "./seed";
 import type { Activity, BoardState, Spot, TimeFilter } from "./types";
 
-const STORAGE_KEY = "playlistbid-board-v2";
+const STORAGE_KEY = "playlistbid-board-v3";
 
 function sortSpots(spots: Spot[]) {
   return [...spots].sort((a, b) => b.bid - a.bid || b.raisedAt - a.raisedAt);
 }
 
+function rankMap(spots: Spot[]): Record<string, number> {
+  const ranks: Record<string, number> = {};
+  sortSpots(spots).forEach((spot, i) => {
+    ranks[spot.id] = i + 1;
+  });
+  return ranks;
+}
+
+function seedState(): BoardState {
+  return {
+    spots: SEED_SPOTS,
+    activity: SEED_ACTIVITY,
+    prevRanks: rankMap(SEED_SPOTS),
+  };
+}
+
 function loadState(): BoardState {
-  if (typeof window === "undefined") {
-    return { spots: SEED_SPOTS, activity: SEED_ACTIVITY, online: 23 };
-  }
+  if (typeof window === "undefined") return seedState();
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) {
-      return { spots: SEED_SPOTS, activity: SEED_ACTIVITY, online: 23 };
-    }
-    const parsed = JSON.parse(raw) as BoardState;
+    if (!raw) return seedState();
+    const parsed = JSON.parse(raw) as Partial<BoardState>;
     if (!Array.isArray(parsed.spots) || parsed.spots.length === 0) {
-      return { spots: SEED_SPOTS, activity: SEED_ACTIVITY, online: 23 };
+      return seedState();
     }
     return {
       spots: parsed.spots,
       activity: parsed.activity ?? [],
-      online: parsed.online ?? 23,
+      prevRanks: parsed.prevRanks ?? rankMap(parsed.spots),
     };
   } catch {
-    return { spots: SEED_SPOTS, activity: SEED_ACTIVITY, online: 23 };
+    return seedState();
   }
 }
 
 type BoardContextValue = {
   spots: Spot[];
   activity: Activity[];
-  online: number;
+  prevRanks: Record<string, number>;
   placeBid: (input: Omit<Spot, "id" | "clicks" | "raisedAt">) => Spot;
   registerClick: (id: string) => void;
   listForSale: (trackId: string, askingPrice: number) => void;
@@ -53,11 +65,7 @@ type BoardContextValue = {
 const BoardContext = createContext<BoardContextValue | null>(null);
 
 export function BoardProvider({ children }: { children: React.ReactNode }) {
-  const [state, setState] = useState<BoardState>({
-    spots: SEED_SPOTS,
-    activity: SEED_ACTIVITY,
-    online: 23,
-  });
+  const [state, setState] = useState<BoardState>(seedState);
   const [hydrated, setHydrated] = useState(false);
 
   useEffect(() => {
@@ -70,37 +78,29 @@ export function BoardProvider({ children }: { children: React.ReactNode }) {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
   }, [state, hydrated]);
 
-  useEffect(() => {
-    const id = setInterval(() => {
-      setState((prev) => ({
-        ...prev,
-        online: Math.max(8, prev.online + Math.floor(Math.random() * 5) - 2),
-      }));
-    }, 8000);
-    return () => clearInterval(id);
-  }, []);
-
   const placeBid = useCallback(
     (input: Omit<Spot, "id" | "clicks" | "raisedAt">) => {
       let nextSpot: Spot | undefined;
       setState((prev) => {
         const existing = prev.spots.find((s) => s.trackId === input.trackId);
         const now = Date.now();
-        if (existing) {
-          nextSpot = {
-            ...existing,
-            ...input,
-            bid: Math.max(existing.bid, input.bid),
-            raisedAt: now,
-          };
-        } else {
-          nextSpot = {
-            ...input,
-            id: crypto.randomUUID(),
-            clicks: 0,
-            raisedAt: now,
-          };
-        }
+        nextSpot = existing
+          ? {
+              ...existing,
+              ...input,
+              bid: Math.max(existing.bid, input.bid),
+              raisedAt: now,
+            }
+          : {
+              ...input,
+              id: crypto.randomUUID(),
+              clicks: 0,
+              raisedAt: now,
+            };
+
+        // Snapshot where everything stood *before* this bid so the board can
+        // show a genuine rank move afterwards.
+        const prevRanks = rankMap(prev.spots);
         const spots = sortSpots([
           nextSpot,
           ...prev.spots.filter((s) => s.trackId !== input.trackId),
@@ -115,8 +115,8 @@ export function BoardProvider({ children }: { children: React.ReactNode }) {
             at: now,
           },
           ...prev.activity,
-        ].slice(0, 40);
-        return { ...prev, spots, activity };
+        ].slice(0, 60);
+        return { spots, activity, prevRanks };
       });
       return nextSpot!;
     },
@@ -145,7 +145,7 @@ export function BoardProvider({ children }: { children: React.ReactNode }) {
     () => ({
       spots: sortSpots(state.spots),
       activity: state.activity,
-      online: state.online,
+      prevRanks: state.prevRanks,
       placeBid,
       registerClick,
       listForSale,
@@ -178,4 +178,15 @@ export function filterSpots(
     if (time === "week" && s.raisedAt < startWeek) return false;
     return true;
   });
+}
+
+/** Positive = the track climbed since the last confirmed bid on the board. */
+export function rankDelta(
+  prevRanks: Record<string, number>,
+  id: string,
+  currentRank: number,
+) {
+  const before = prevRanks[id];
+  if (typeof before !== "number") return null;
+  return before - currentRank;
 }
