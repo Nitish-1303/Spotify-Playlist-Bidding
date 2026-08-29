@@ -5,28 +5,28 @@ import { HomeJsonLd } from "@/components/json-ld";
 
 const CONDITIONS = [
   {
-    title: "The highest bid holds the lot",
-    body: "Every song opens at $1. A bigger number sits above a smaller one, and matching bids keep the earlier timestamp.",
+    title: "You buy a track position, not a number",
+    body: "Pick the slot you want — side A track 1, side B track 3 — and pay a dollar more than whoever holds it. The song takes that slot.",
   },
   {
-    title: "You confirm your own fill",
-    body: "Pay with PayPal or, in India, UPI. Come back and press “I paid”. Nothing prints on the rack until you confirm it.",
+    title: "Everyone below shifts one later",
+    body: "Taking track 3 pushes the old track 3 to track 4, and so on down. Nobody drops two slots at once.",
   },
   {
-    title: "The same link raises, never repeats",
-    body: "Send a song that is already on the rack and it raises that lot instead of opening a second one.",
+    title: "You confirm your own payment",
+    body: "Pay with PayPal or, in India, UPI. Come back and press “I paid”. Nothing is written on the tape until you confirm it.",
+  },
+  {
+    title: "The same link moves up, never repeats",
+    body: "Send a song already on the tape and it moves that song to the slot you picked, instead of writing it on twice.",
   },
   {
     title: "Plays are counted here only",
-    body: "Opening a title records a play on this board. It does not reach Spotify charts, playlists or stream counts.",
+    body: "Tapping a cover plays it in the deck and records a play on this tape. It does not reach Spotify charts, playlists or stream counts.",
   },
   {
     title: "Public song links only",
-    body: "One open.spotify.com/track link per lot. Albums and playlists are turned away at the door.",
-  },
-  {
-    title: "Titles and artwork come from Spotify",
-    body: "Names, covers and playback use Spotify’s public oEmbed endpoint and official embedded player. Nothing is uploaded.",
+    body: "One open.spotify.com/track link per slot. Titles, artwork and playback come from Spotify’s public oEmbed endpoint and official embedded player.",
   },
 ] as const;
 
@@ -37,27 +37,30 @@ export default function Page() {
       <SiteHeader />
 
       <section className="rack pt-10 pb-8">
-        <p className="slip">independent song auction · bidding open · min $1</p>
+        <p className="slip">
+          one tape · made by everyone · side a track 1 opens at $1
+        </p>
         <h1 className="marquee headline mt-3 max-w-3xl">
-          Pay for the top
+          Pick the track.
           <br />
-          of the board.
+          Pay for the slot.
         </h1>
         <p className="mt-5 max-w-2xl text-[1.0625rem] leading-relaxed">
-          Every song here has a price on it. Paste a public Spotify link, name
-          what the number one slot is worth to you, and your bid prints on the
-          rack for everyone to read. A lot number is a position on this site — it
-          does not change Spotify playlists, charts or streams.
+          It&apos;s one long mixtape and every slot on it has a price. Paste a
+          public Spotify link, choose the exact position you want — side A track
+          1, side B track 4 — and pay what that slot costs. The song lands there
+          and everything below shifts one track later. A position here is a slot
+          on this site; it does not change Spotify playlists, charts or streams.
         </p>
         <div className="mt-7 flex flex-wrap items-center gap-2.5">
           <a href="#bid" className="btn btn-hammer btn-lg">
-            Raise your hand
+            Pick a slot
           </a>
           <a href="#rack" className="btn btn-lg">
-            See the rack
+            Play the tape
           </a>
           <Link href="/stats" className="btn btn-press btn-lg">
-            House ledger
+            Liner notes
           </Link>
           <div className="stamp ml-1">
             <b>not affiliated with spotify</b>
@@ -75,7 +78,7 @@ export default function Page() {
       >
         <div className="mb-5 flex flex-wrap items-end justify-between gap-3">
           <div>
-            <p className="slip">conditions of sale</p>
+            <p className="slip">how the tape works</p>
             <h2 id="conditions-heading" className="marquee mt-1.5 text-2xl">
               Six rules, no fine print
             </h2>
@@ -95,19 +98,19 @@ export default function Page() {
       </section>
 
       <section className="rack band dashed-t" aria-labelledby="about-heading">
-        <p className="slip">about the house</p>
+        <p className="slip">liner notes</p>
         <h2 id="about-heading" className="marquee mt-1.5 text-2xl">
-          An open market for attention
+          A mixtape anyone can write on
         </h2>
         <div className="mt-4 grid max-w-4xl gap-5 text-sm leading-relaxed sm:grid-cols-2">
           <p>
-            Most music discovery runs on a feed nobody can see inside. This board
-            runs on a public number instead: whoever pays most for a lot holds it,
-            and anyone can read the price, the play count and the minute it last
-            moved.
+            Most music discovery runs on a feed nobody can see inside. This tape
+            runs on a public number instead: every slot has a price written next
+            to it, and anyone can read that price, the play count, and the minute
+            the track last moved.
           </p>
           <p>
-            Your lots are saved in your own browser. Visitor counts are measured
+            Your tape is saved in your own browser. Visitor counts are measured
             server-side from a random id your browser keeps — no IP addresses,
             cookies or user agents. PlaylistBid is not affiliated with, endorsed
             by, or connected to Spotify AB.

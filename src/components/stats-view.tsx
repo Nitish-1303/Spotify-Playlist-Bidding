@@ -9,13 +9,13 @@ import { EMPTY_SNAPSHOT } from "@/lib/stats-types";
 import { useVisitorStats } from "@/lib/visitor-stats";
 
 const PAGE_NAMES: Record<string, string> = {
-  "/": "The rack",
-  "/stats": "Ledger",
-  "/rules": "Conditions of sale",
-  "/success": "Bid confirmed",
+  "/": "The tape",
+  "/stats": "Liner notes",
+  "/rules": "How the tape works",
+  "/success": "Tape receipt",
 };
 
-/** The full house ledger: traffic on the left of the brief, board on the right. */
+/** The full liner notes: traffic up top, what the tape is worth below. */
 export function StatsView() {
   const { stats, loading, refresh } = useVisitorStats();
   const { spots, activity } = useBoard();
@@ -27,7 +27,7 @@ export function StatsView() {
       <section aria-labelledby="traffic">
         <div className="mb-3 flex flex-wrap items-end justify-between gap-3">
           <h2 id="traffic" className="marquee text-xl">
-            Who is in the room
+            Who is listening
           </h2>
           <button type="button" className="btn btn-ghost" onClick={refresh}>
             Refresh
@@ -36,7 +36,7 @@ export function StatsView() {
 
         <div className="figures">
           <Figure
-            label="in the room"
+            label="listening now"
             value={formatInt(s.liveNow)}
             note="active in the last 5 minutes"
             lead
@@ -54,7 +54,7 @@ export function StatsView() {
           <Figure
             label="pages counted"
             value={formatInt(s.topPages.length)}
-            note={loading ? "reading the ledger…" : "with at least one view"}
+            note={loading ? "reading the notes…" : "with at least one view"}
           />
         </div>
 
@@ -102,28 +102,28 @@ export function StatsView() {
 
       <section aria-labelledby="board-figures">
         <h2 id="board-figures" className="marquee mb-3 text-xl">
-          What the rack is worth
+          What the tape is worth
         </h2>
         <div className="figures">
           <Figure
-            label="standing bid"
+            label="side a · track 1"
             value={formatUsd(market.topBid, 0)}
             note={
               market.lastBidAt
-                ? `last raised ${timeAgo(market.lastBidAt)}`
-                : "no bids yet"
+                ? `last moved ${timeAgo(market.lastBidAt)}`
+                : "nothing written on yet"
             }
             lead
           />
           <Figure
-            label="on the rack"
+            label="on the tape"
             value={formatUsd(market.volume, 0)}
-            note={`${formatInt(market.tracks)} lots listed`}
+            note={`${formatInt(market.tracks)} songs written on`}
           />
           <Figure
-            label="raised today"
+            label="paid today"
             value={formatUsd(market.volume24h, 0)}
-            note={`${formatInt(market.bids24h)} bids in 24 hours`}
+            note={`${formatInt(market.bids24h)} slots bought in 24 hours`}
           />
           <Figure
             label="plays from here"
@@ -136,7 +136,7 @@ export function StatsView() {
           <div className="card-hd">
             <h3 className="slip">money by shelf</h3>
             <span className="slip slip-quiet">
-              lead {formatUsd(market.spread, 0)} clear
+              track 1 is {formatUsd(market.spread, 0)} clear
             </span>
           </div>
           <div className="card-bd">
@@ -144,7 +144,7 @@ export function StatsView() {
               rows={market.genreShare
                 .filter((g) => g.total > 0)
                 .map((g) => ({ key: g.genre, views: g.total }))}
-              empty="No lots on the rack yet."
+              empty="Nothing on the tape yet."
               format={(key) => key}
               formatValue={(n) => formatUsd(n, 0)}
             />
@@ -152,9 +152,9 @@ export function StatsView() {
         </div>
 
         <p className="mt-3 text-xs leading-relaxed chrome">
-          Board figures come from the confirmed bids saved in this browser. They
-          are your own rack — visitor counts above are measured server-side for
-          everyone.
+          Tape figures come from the confirmed payments saved in this browser.
+          They are your own copy of the tape — visitor counts above are measured
+          server-side for everyone.
         </p>
       </section>
     </div>

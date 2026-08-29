@@ -8,6 +8,8 @@ export type PendingBid = {
   thumbnailUrl: string;
   genre: string;
   bid: number;
+  /** The track position this payment was for, so the receipt can check it. */
+  targetRank?: number;
   askingPrice?: number;
   method?: PaymentMethod;
 };

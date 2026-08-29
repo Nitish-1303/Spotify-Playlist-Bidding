@@ -1,8 +1,14 @@
 import "./globals.css";
 import type { Metadata, Viewport } from "next";import { Analytics } from "@vercel/analytics/next";
-import { Anton, Courier_Prime, Instrument_Sans } from "next/font/google";
+import {
+  Courier_Prime,
+  Instrument_Sans,
+  Permanent_Marker,
+} from "next/font/google";
 import { BoardProvider } from "@/lib/board-context";
+import { NowPlayingProvider } from "@/lib/now-playing";
 import { VisitorStatsProvider } from "@/lib/visitor-stats";
+import { MiniPlayer } from "@/components/mini-player";
 import {
   SITE_DESCRIPTION,
   SITE_KEYWORDS,
@@ -10,11 +16,14 @@ import {
   SITE_URL,
 } from "@/lib/site";
 
-/** Marquee face — hammer prices, lot numbers, headlines only. */
-const marquee = Anton({
+/**
+ * Marker face — song titles, prices and headlines, as if someone wrote them
+ * onto the cassette label by hand. Nowhere else.
+ */
+const hand = Permanent_Marker({
   subsets: ["latin"],
   weight: "400",
-  variable: "--font-marquee",
+  variable: "--font-hand",
   display: "swap",
 });
 
@@ -24,7 +33,7 @@ const body = Instrument_Sans({
   display: "swap",
 });
 
-/** Typed consignment-slip face for labels, counts and ledger columns. */
+/** Typewriter face for the typed parts of a tape label: sides, tracks, counts. */
 const slip = Courier_Prime({
   subsets: ["latin"],
   weight: ["400", "700"],
@@ -79,7 +88,7 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: "#efeee8",
+  themeColor: "#efe3c8",
 };
 
 export default function RootLayout({
@@ -90,12 +99,17 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${marquee.variable} ${body.variable} ${slip.variable}`}
+      className={`${hand.variable} ${body.variable} ${slip.variable}`}
       suppressHydrationWarning
     >
       <body className={body.className} suppressHydrationWarning>
         <BoardProvider>
-          <VisitorStatsProvider>{children}</VisitorStatsProvider>
+          <VisitorStatsProvider>
+            <NowPlayingProvider>
+              {children}
+              <MiniPlayer />
+            </NowPlayingProvider>
+          </VisitorStatsProvider>
         </BoardProvider>
         <Analytics />
       </body>

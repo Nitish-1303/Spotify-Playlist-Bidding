@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { PayPalMark, UpiMark } from "@/components/pay-marks";
 import { useBoard } from "@/lib/board-context";
 import { formatUsd } from "@/lib/format";
@@ -16,20 +16,43 @@ import {
   savePendingBid,
   type PendingBid,
 } from "@/lib/pending-bid";
+import {
+  chartOrder,
+  openRanks,
+  priceForRank,
+  rankOf,
+  sideOf,
+  trackOnSide,
+} from "@/lib/ranks";
 import { UPI_ID, USD_TO_INR } from "@/lib/site";
 import { parseSpotifyTrackId, spotifyTrackUrl } from "@/lib/spotify";
 import { GENRES, type Genre, type Spot } from "@/lib/types";
 
 type BidTicketProps = {
-  bid: number;
-  setBid: (next: number) => void;
+  /** The track position being bought. Price follows from it, not the reverse. */
+  targetRank: number;
+  setTargetRank: (next: number) => void;
   onConfirmed: (spot: Spot) => void;
   formRef?: React.RefObject<HTMLFormElement | null>;
 };
 
-/** The paddle: paste a track, name a price, pay, then confirm the fill. */
-export function BidTicket({ bid, setBid, onConfirmed, formRef }: BidTicketProps) {
-  const { placeBid } = useBoard();
+/** "side a · track 3" — how every position is named on this site. */
+export function slotLabel(rank: number) {
+  return `side ${sideOf(rank)} · track ${trackOnSide(rank)}`;
+}
+
+/**
+ * The paddle: paste a song, pick the track position you want, pay what that
+ * position costs, then confirm. The price is never typed in — it is whatever
+ * it takes to sit where you pointed.
+ */
+export function BidTicket({
+  targetRank,
+  setTargetRank,
+  onConfirmed,
+  formRef,
+}: BidTicketProps) {
+  const { spots, placeBid } = useBoard();
   const [url, setUrl] = useState("");
   const [genre, setGenre] = useState<Exclude<Genre, "All">>("Pop");
   const [method, setMethod] = useState<PaymentMethod>("paypal");
@@ -38,16 +61,39 @@ export function BidTicket({ bid, setBid, onConfirmed, formRef }: BidTicketProps)
   const [pending, setPending] = useState<PendingBid | null>(null);
   const localRef = useRef<HTMLFormElement>(null);
   const ref = formRef ?? localRef;
-  const inr = bidToInr(bid);
 
   useEffect(() => {
     setPending(readPendingBid());
   }, []);
 
+  // Once a valid link is in the box we know which song this is, so the board is
+  // priced as if that song were lifted off the tape first.
+  const draftId = parseSpotifyTrackId(url) ?? undefined;
+  const held = draftId ? rankOf(spots, draftId) : null;
+
+  const others = useMemo(
+    () => chartOrder(spots.filter((s) => s.trackId !== draftId)),
+    [spots, draftId],
+  );
+
+  /**
+   * Positions on offer. A song already on the tape can only move up — paying to
+   * sit lower than you already sit would take money and change nothing.
+   */
+  const slots = useMemo(
+    () => openRanks(spots, draftId).filter((r) => held === null || r < held),
+    [spots, draftId, held],
+  );
+
+  const stuck = held === 1;
+  const rank = slots.includes(targetRank) ? targetRank : (slots[0] ?? 1);
+  const bid = priceForRank(spots, rank, draftId);
+  const inr = bidToInr(bid);
+
   function confirmPaid() {
     const draft = pending ?? readPendingBid();
     if (!draft) return;
-    const spot = placeBid({
+    const { spot, spots: after } = placeBid({
       trackId: draft.trackId,
       trackUrl: draft.trackUrl || spotifyTrackUrl(draft.trackId),
       title: draft.title,
@@ -57,11 +103,17 @@ export function BidTicket({ bid, setBid, onConfirmed, formRef }: BidTicketProps)
       bid: draft.bid,
       askingPrice: draft.askingPrice,
     });
+
+    // Work out where it actually landed rather than assuming it obeyed.
+    const landed = rankOf(after, spot.trackId) ?? draft.targetRank ?? 1;
+
     clearPendingBid();
     setPending(null);
     setUrl("");
     setStatus(
-      `Filled. ${spot.title} is on the rack at ${formatUsd(spot.bid, 0)}.`,
+      draft.targetRank && landed < draft.targetRank
+        ? `On the tape. ${spot.title} landed at ${slotLabel(landed)} — one better than the ${slotLabel(draft.targetRank)} you paid for.`
+        : `On the tape. ${spot.title} is ${slotLabel(landed)} at ${formatUsd(spot.bid, 0)}.`,
     );
     onConfirmed(spot);
   }
@@ -73,8 +125,8 @@ export function BidTicket({ bid, setBid, onConfirmed, formRef }: BidTicketProps)
       setStatus("That is not a track link. Use open.spotify.com/track/…");
       return;
     }
-    if (bid < 1) {
-      setStatus("Bidding opens at $1.");
+    if (stuck) {
+      setStatus("That song already holds side A · track 1. Nothing above it.");
       return;
     }
 
@@ -100,15 +152,14 @@ export function BidTicket({ bid, setBid, onConfirmed, formRef }: BidTicketProps)
         thumbnailUrl: meta.thumbnailUrl || "",
         genre,
         bid,
+        targetRank: rank,
         method,
       };
       savePendingBid(draft);
       setPending(draft);
 
       if (method === "upi") {
-        setStatus(
-          `Pay ${formatInr(inr)} in your UPI app, then press “I paid”.`,
-        );
+        setStatus(`Pay ${formatInr(inr)} in your UPI app, then press “I paid”.`);
         window.location.assign(paymentCheckoutUrl("upi", bid));
         setBusy(false);
         return;
@@ -135,9 +186,9 @@ export function BidTicket({ bid, setBid, onConfirmed, formRef }: BidTicketProps)
     <section className="paddle" id="paddle" aria-labelledby="paddle-heading">
       <div className="paddle-hd">
         <h2 id="paddle-heading" className="slip">
-          your paddle
+          write it on the label
         </h2>
-        <span className="paddle-no">№ {bid}</span>
+        <span className="paddle-no">{slotLabel(rank)}</span>
       </div>
 
       {pending && (
@@ -148,15 +199,17 @@ export function BidTicket({ bid, setBid, onConfirmed, formRef }: BidTicketProps)
           <p className="mt-1.5 flex flex-wrap items-center gap-2 text-sm">
             {pending.method === "upi" ? <UpiMark /> : <PayPalMark />}
             <span>
-              {pending.title} at {formatUsd(pending.bid, 0)}
+              {pending.title} for{" "}
+              {pending.targetRank ? slotLabel(pending.targetRank) : "the tape"} —{" "}
+              {formatUsd(pending.bid, 0)}
               {pending.method === "upi"
-                ? ` — ${formatInr(bidToInr(pending.bid))} to ${UPI_ID}`
+                ? ` (${formatInr(bidToInr(pending.bid))} to ${UPI_ID})`
                 : ""}
             </span>
           </p>
           <div className="mt-3 flex flex-wrap gap-2">
             <button type="button" className="btn btn-hammer" onClick={confirmPaid}>
-              I paid — fill my bid
+              I paid — put it on the tape
             </button>
             <a
               className="btn"
@@ -192,59 +245,75 @@ export function BidTicket({ bid, setBid, onConfirmed, formRef }: BidTicketProps)
             inputMode="url"
             autoComplete="off"
           />
+          {held !== null && (
+            <p className="slip slip-quiet mt-1.5">
+              already on the tape at {slotLabel(held)}
+            </p>
+          )}
         </div>
 
-        <div className="grid gap-4 sm:grid-cols-2">
-          <div>
-            <label htmlFor="track-genre" className="slip label">
-              shelf
-            </label>
-            <select
-              id="track-genre"
-              value={genre}
-              onChange={(e) => setGenre(e.target.value as Exclude<Genre, "All">)}
-              className="field field-select"
-            >
-              {GENRES.filter((g) => g !== "All").map((g) => (
-                <option key={g} value={g}>
-                  {g}
-                </option>
-              ))}
-            </select>
-          </div>
+        <div>
+          <label htmlFor="track-genre" className="slip label">
+            shelf
+          </label>
+          <select
+            id="track-genre"
+            value={genre}
+            onChange={(e) => setGenre(e.target.value as Exclude<Genre, "All">)}
+            className="field field-select"
+          >
+            {GENRES.filter((g) => g !== "All").map((g) => (
+              <option key={g} value={g}>
+                {g}
+              </option>
+            ))}
+          </select>
+        </div>
 
-          <div>
-            <span className="slip label">your bid</span>
-            <div className="flex items-center gap-2">
-              <button
-                type="button"
-                className="btn btn-step h-12"
-                onClick={() => setBid(Math.max(1, bid - 1))}
-                aria-label="Lower bid by one dollar"
-              >
-                −
-              </button>
-              <input
-                type="number"
-                min={1}
-                step={1}
-                value={bid}
-                onChange={(e) =>
-                  setBid(Math.max(1, Math.round(Number(e.target.value) || 1)))
-                }
-                className="field marquee text-center text-xl"
-                aria-label="Bid amount in US dollars"
-              />
-              <button
-                type="button"
-                className="btn btn-step h-12"
-                onClick={() => setBid(bid + 1)}
-                aria-label="Raise bid by one dollar"
-              >
-                +
-              </button>
+        <div className="dashed-t pt-4">
+          <span className="slip label">pick your track position</span>
+
+          {stuck ? (
+            <p className="notice text-sm">
+              This song already holds side A · track 1. There is nothing above it
+              to buy.
+            </p>
+          ) : (
+            <div
+              className="slots"
+              role="radiogroup"
+              aria-label="Track position to buy"
+            >
+              {slots.map((r) => {
+                const holder = others[r - 1];
+                const cost = priceForRank(spots, r, draftId);
+                return (
+                  <button
+                    key={r}
+                    type="button"
+                    role="radio"
+                    aria-checked={r === rank}
+                    onClick={() => setTargetRank(r)}
+                    className={`slot ${r === rank ? "slot-on" : ""}`}
+                  >
+                    <span className="slot-no">
+                      {sideOf(r)}&nbsp;·&nbsp;{trackOnSide(r)}
+                    </span>
+                    <span className="slot-holder">
+                      {holder ? (
+                        <>
+                          takes it from <b className="font-normal">{holder.title}</b>
+                        </>
+                      ) : (
+                        "the open end of the tape"
+                      )}
+                    </span>
+                    <span className="slot-cost">{formatUsd(cost, 0)}</span>
+                  </button>
+                );
+              })}
             </div>
-          </div>
+          )}
         </div>
 
         <div className="dashed-t pt-4">
@@ -280,18 +349,16 @@ export function BidTicket({ bid, setBid, onConfirmed, formRef }: BidTicketProps)
         <button
           type="submit"
           className="btn btn-hammer btn-lg w-full"
-          disabled={busy}
+          disabled={busy || stuck}
         >
           {busy
             ? "Opening checkout…"
             : method === "upi"
-              ? `Pay ${formatInr(inr)} with UPI`
-              : `Pay ${formatUsd(bid, 0)} with PayPal`}
+              ? `Pay ${formatInr(inr)} for ${slotLabel(rank)}`
+              : `Pay ${formatUsd(bid, 0)} for ${slotLabel(rank)}`}
         </button>
 
-        {status && (
-          <p className="notice notice-press text-sm">{status}</p>
-        )}
+        {status && <p className="notice notice-press text-sm">{status}</p>}
 
         <p className="text-xs leading-relaxed chrome">
           {method === "upi" ? (
@@ -306,11 +373,14 @@ export function BidTicket({ bid, setBid, onConfirmed, formRef }: BidTicketProps)
           ) : (
             <>PayPal opens paypal.me in this tab.</>
           )}{" "}
-          Come back and press “I paid” to fill the bid — nothing reaches the rack
-          until you confirm. Sending the same song link again raises your
-          existing bid instead of adding a second lot.
+          A position costs a dollar more than whoever holds it. Pay it and the
+          song takes that slot; everything from there down shifts one track
+          later. Nothing moves until you come back and press “I paid”.
         </p>
       </form>
     </section>
   );
 }
+
+
+

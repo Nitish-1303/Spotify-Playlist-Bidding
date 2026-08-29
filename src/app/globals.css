@@ -1,24 +1,25 @@
 @import "tailwindcss";
 
 /* ═══════════════════════════════════════════════════════════════
-   PlaylistBid — "the rack"
-   Every ranked song is a printed jukebox title strip in a rack,
-   auctioned as a lot. Printed card stock, offset red and blue
-   rules, punched holes, typed consignment slips, chrome.
+   PlaylistBid — "the mixtape"
+   A cassette someone made for you. Kraft sleeve, cream tape
+   labels ruled in ballpoint, titles written on in marker, side A
+   and side B, two reels that turn while a song plays.
    ═══════════════════════════════════════════════════════════════ */
 
 :root {
-  --paper: #efeee8;   /* rack backing board */
-  --strip: #ffffff;   /* printed card stock */
-  --ink: #15171b;     /* cool near-black */
-  --hammer: #ce2b37;  /* jukebox red — prices, the lead, live */
-  --press: #16307a;   /* offset blue — structure, labels, links */
-  --chrome: #8c9099;  /* quiet metadata */
-  --edge: #d6d4cb;    /* hairlines */
+  --paper: #efe3c8;   /* kraft sleeve */
+  --strip: #fbf6ea;   /* cassette label stock */
+  --ink: #2a2118;     /* warm brown-black, like a felt tip gone dry */
+  --hammer: #c2402b;  /* red marker — prices, side A, the top slot */
+  --press: #2c4a7c;   /* ballpoint blue — rules, labels, links */
+  --chrome: #8a7c65;  /* pencil grey — quiet metadata */
+  --edge: #d9c8a4;    /* tan hairlines */
+  --shell: #26241f;   /* cassette shell, for the deck */
 
-  --hammer-wash: rgba(206, 43, 55, 0.08);
-  --press-wash: rgba(22, 48, 122, 0.07);
-  --rack: 1180px;
+  --hammer-wash: rgba(194, 64, 43, 0.09);
+  --press-wash: rgba(44, 74, 124, 0.08);
+  --rack: 1100px;
 }
 
 * {
@@ -37,19 +38,25 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
-/* The rack backing: pegboard perforations, very faint. */
+/* Kraft grain: fibres in the sleeve card, very faint. */
 body::before {
   content: "";
   position: fixed;
   inset: 0;
   z-index: 0;
   pointer-events: none;
-  background-image: radial-gradient(
-    circle at center,
-    rgba(21, 23, 27, 0.055) 1.1px,
-    transparent 1.2px
-  );
-  background-size: 22px 22px;
+  opacity: 0.5;
+  background-image:
+    repeating-linear-gradient(
+      92deg,
+      rgba(122, 96, 54, 0.05) 0 1px,
+      transparent 1px 4px
+    ),
+    repeating-linear-gradient(
+      3deg,
+      rgba(122, 96, 54, 0.04) 0 1px,
+      transparent 1px 7px
+    );
 }
 
 body > * {
@@ -107,7 +114,7 @@ textarea {
 
 /* ── type ────────────────────────────────────────────────────── */
 
-/* Typed consignment-slip label. */
+/* Typed onto the label with a typewriter: side/track lines, counts. */
 .slip {
   font-family: var(--font-slip), ui-monospace, monospace;
   font-size: 0.6875rem;
@@ -121,13 +128,12 @@ textarea {
   color: var(--chrome);
 }
 
-/* Marquee face — hammer prices, lot numbers, headlines. Nowhere else. */
+/* Written on by hand in marker — titles, prices, headlines. Nowhere else. */
 .marquee {
-  font-family: var(--font-marquee), ui-sans-serif, sans-serif;
+  font-family: var(--font-hand), ui-sans-serif, sans-serif;
   font-weight: 400;
   letter-spacing: 0.005em;
-  line-height: 0.92;
-  text-transform: uppercase;
+  line-height: 1.05;
 }
 
 .tnum {
@@ -148,13 +154,15 @@ textarea {
 }
 
 .headline {
-  font-size: clamp(2.4rem, 7vw, 4.5rem);
+  font-size: clamp(2rem, 5.4vw, 3.5rem);
+  line-height: 1.08;
 }
 
 .subhead {
-  font-size: clamp(1.5rem, 3.4vw, 2.125rem);
+  font-size: clamp(1.375rem, 3vw, 1.875rem);
 }
 
+/* Underlined the way you'd underline a favourite twice. */
 .tie {
   border-bottom: 2px solid var(--hammer);
 }
@@ -163,53 +171,60 @@ textarea {
   color: var(--hammer);
 }
 
-/* ── the strip (signature element) ───────────────────────────── */
+/* ── the tape label (signature element) ──────────────────────── */
 
+/* A cassette inlay card: cream stock, ruled twice in ballpoint. */
 .strip {
   position: relative;
   display: flex;
   align-items: stretch;
   background: var(--strip);
-  border: 1px solid var(--edge);
-  border-radius: 4px;
-  box-shadow: 0 1px 0 rgba(21, 23, 27, 0.05);
-  transition: transform 0.16s ease, box-shadow 0.16s ease,
-    border-color 0.16s ease;
+  border: 1px solid var(--press);
+  border-radius: 2px;
+  box-shadow:
+    inset 0 0 0 1px var(--strip),
+    inset 0 0 0 2px rgba(44, 74, 124, 0.35),
+    0 1px 0 rgba(42, 33, 24, 0.06);
+  transition: transform 0.16s ease, box-shadow 0.16s ease;
 }
 
 .strip:hover {
-  transform: translateY(-2px);
-  border-color: var(--press);
-  box-shadow: 0 6px 16px -6px rgba(21, 23, 27, 0.22);
+  transform: translateY(-2px) rotate(-0.25deg);
+  box-shadow:
+    inset 0 0 0 1px var(--strip),
+    inset 0 0 0 2px var(--press),
+    0 7px 18px -8px rgba(42, 33, 24, 0.3);
 }
 
-/* Die-cut tab holding the lot number, with a punched hole above it. */
+/* Left edge of the inlay: the typed track number. */
 .strip-tab {
   position: relative;
-  flex: 0 0 3.5rem;
+  flex: 0 0 3.25rem;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 0.45rem;
-  padding-block: 0.75rem;
+  gap: 0.3rem;
+  padding-block: 0.7rem;
   background: var(--press-wash);
-  border-right: 1px dashed var(--edge);
-  border-radius: 3px 0 0 3px;
+  border-right: 1px solid rgba(44, 74, 124, 0.35);
 }
 
+/* The sprocket window punched in the inlay fold. */
 .hole {
-  width: 9px;
-  height: 9px;
-  border-radius: 999px;
+  width: 10px;
+  height: 7px;
+  border-radius: 1px;
   background: var(--paper);
-  box-shadow: inset 0 1px 1.5px rgba(21, 23, 27, 0.4);
+  box-shadow: inset 0 1px 1.5px rgba(42, 33, 24, 0.45);
 }
 
 .strip-lot {
-  font-family: var(--font-marquee), sans-serif;
-  font-size: 1.0625rem;
+  font-family: var(--font-slip), ui-monospace, monospace;
+  font-size: 0.9375rem;
+  font-weight: 700;
   line-height: 1;
+  letter-spacing: 0.02em;
   color: var(--press);
 }
 
@@ -222,36 +237,44 @@ textarea {
   padding: 0.7rem 0.9rem;
 }
 
-/* The lead lot is printed in red. */
+/* Track 1 on side A gets the red marker treatment. */
+.strip-lead {
+  border-color: var(--hammer);
+  box-shadow:
+    inset 0 0 0 1px var(--strip),
+    inset 0 0 0 2px rgba(194, 64, 43, 0.4),
+    0 1px 0 rgba(42, 33, 24, 0.06);
+}
+
+.strip-lead:hover {
+  box-shadow:
+    inset 0 0 0 1px var(--strip),
+    inset 0 0 0 2px var(--hammer),
+    0 7px 18px -8px rgba(42, 33, 24, 0.3);
+}
+
 .strip-lead .strip-tab {
-  background: var(--hammer);
-  border-right-color: rgba(255, 255, 255, 0.5);
+  background: var(--hammer-wash);
+  border-right-color: rgba(194, 64, 43, 0.4);
 }
 
 .strip-lead .strip-lot {
-  color: #fff;
+  color: var(--hammer);
 }
 
-.strip-lead .hole {
-  background: #9d1f28;
-  box-shadow: inset 0 1px 1.5px rgba(0, 0, 0, 0.45);
-}
-
-.strip-lead {
-  border-color: var(--hammer);
-}
-
+/* Titles are written on the label, not printed. */
 .strip-title {
-  font-size: 0.9375rem;
-  font-weight: 600;
-  letter-spacing: -0.005em;
+  font-family: var(--font-hand), ui-sans-serif, sans-serif;
+  font-size: 1.0625rem;
+  line-height: 1.15;
+  letter-spacing: 0.01em;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
 .strip-artist {
-  margin-top: 0.15rem;
+  margin-top: 0.1rem;
   font-family: var(--font-slip), ui-monospace, monospace;
   font-size: 0.6875rem;
   letter-spacing: 0.08em;
@@ -263,10 +286,55 @@ textarea {
 }
 
 .strip-price {
-  font-family: var(--font-marquee), sans-serif;
-  font-size: 1.5rem;
+  font-family: var(--font-hand), ui-sans-serif, sans-serif;
+  font-size: 1.375rem;
   line-height: 1;
   color: var(--hammer);
+}
+
+/* The typed "SIDE A · TRACK 1" line across the top of an inlay. */
+.tapeline {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.3rem 0.9rem;
+  border-bottom: 1px dashed var(--edge);
+  background: rgba(44, 74, 124, 0.04);
+}
+
+/* ── reels ───────────────────────────────────────────────────── */
+
+.reel {
+  position: relative;
+  display: block;
+  width: 1.25rem;
+  height: 1.25rem;
+  border-radius: 999px;
+  border: 2px solid var(--chrome);
+  background:
+    radial-gradient(circle at center, var(--paper) 0 22%, transparent 23%),
+    conic-gradient(
+      from 0deg,
+      var(--ink) 0 8%,
+      transparent 8% 25%,
+      var(--ink) 25% 33%,
+      transparent 33% 50%,
+      var(--ink) 50% 58%,
+      transparent 58% 75%,
+      var(--ink) 75% 83%,
+      transparent 83%
+    );
+}
+
+.reel-spin {
+  animation: reel 2.6s linear infinite;
+}
+
+@keyframes reel {
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 /* ── cover art ───────────────────────────────────────────────── */
@@ -502,9 +570,9 @@ textarea {
 
 .figure-value {
   margin-top: 0.4rem;
-  font-family: var(--font-marquee), sans-serif;
+  font-family: var(--font-hand), ui-sans-serif, sans-serif;
   font-size: clamp(1.75rem, 4vw, 2.25rem);
-  line-height: 0.95;
+  line-height: 1.05;
 }
 
 .figure-note {
@@ -555,10 +623,14 @@ textarea {
 }
 
 .paddle-no {
-  font-family: var(--font-marquee), sans-serif;
-  font-size: 1.125rem;
+  font-family: var(--font-slip), ui-monospace, monospace;
+  font-size: 0.6875rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
   line-height: 1;
   color: var(--hammer);
+  white-space: nowrap;
 }
 
 .paddle-bd {
@@ -654,11 +726,12 @@ textarea {
 
 /* ── header nav ──────────────────────────────────────────────── */
 
+/* The sleeve spine: kraft, with the ballpoint rule under it. */
 .masthead {
   position: sticky;
   top: 0;
   z-index: 40;
-  background: rgba(255, 255, 255, 0.93);
+  background: rgba(239, 227, 200, 0.94);
   backdrop-filter: blur(10px);
   border-bottom: 2px solid var(--press);
 }
@@ -771,10 +844,10 @@ textarea {
 
 .stamp b {
   display: block;
-  font-family: var(--font-marquee), sans-serif;
+  font-family: var(--font-hand), ui-sans-serif, sans-serif;
   font-size: 1.0625rem;
   font-weight: 400;
-  letter-spacing: 0.05em;
+  letter-spacing: 0.02em;
 }
 
 /* ── pay with (branded) ──────────────────────────────────────── */
@@ -837,7 +910,7 @@ textarea {
 }
 
 .pay-amt {
-  font-family: var(--font-marquee), sans-serif;
+  font-family: var(--font-hand), ui-sans-serif, sans-serif;
   font-size: 1.0625rem;
   line-height: 1.1;
   color: var(--ink);
@@ -862,6 +935,225 @@ textarea {
   background: var(--press-wash);
 }
 
+/* ── the rank picker (buy a track position) ──────────────────── */
+
+/* A column of tape slots you can point at. The one you pick gets the
+   marker treatment, the same red as the price you'll pay for it. */
+.slots {
+  display: grid;
+  gap: 0.4rem;
+  max-height: 17rem;
+  overflow-y: auto;
+  padding-right: 0.15rem;
+  scrollbar-width: thin;
+}
+
+.slot {
+  display: grid;
+  grid-template-columns: 2.5rem minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.7rem;
+  width: 100%;
+  padding: 0.5rem 0.7rem;
+  border: 1.5px solid var(--edge);
+  border-radius: 2px;
+  background: var(--strip);
+  cursor: pointer;
+  text-align: left;
+  transition: border-color 0.14s ease, background 0.14s ease;
+}
+
+.slot:hover {
+  border-color: var(--ink);
+}
+
+.slot.slot-on,
+.slot.slot-on:hover {
+  border-color: var(--hammer);
+  border-width: 2px;
+  background: var(--hammer-wash);
+}
+
+.slot:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.slot-no {
+  font-family: var(--font-slip), ui-monospace, monospace;
+  font-size: 0.6875rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--press);
+}
+
+.slot-on .slot-no {
+  color: var(--hammer);
+}
+
+/* Who you'd be moving down a slot. */
+.slot-holder {
+  min-width: 0;
+  font-size: 0.8125rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.slot-cost {
+  font-family: var(--font-hand), ui-sans-serif, sans-serif;
+  font-size: 1.125rem;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.slot-on .slot-cost {
+  color: var(--hammer);
+}
+
+/* ── the deck (sticky mini-player) ───────────────────────────── */
+
+/* The cassette deck along the bottom: dark shell, two turning reels, and
+   Spotify's own embed doing the actual playing. */
+.deck {
+  position: fixed;
+  inset-inline: 0;
+  bottom: 0;
+  z-index: 60;
+  background: var(--shell);
+  border-top: 3px solid var(--hammer);
+  box-shadow: 0 -8px 24px -12px rgba(42, 33, 24, 0.55);
+}
+
+.deck-in {
+  display: flex;
+  align-items: center;
+  gap: 0.9rem;
+  width: 100%;
+  max-width: var(--rack);
+  margin: 0 auto;
+  padding: 0.55rem 1.125rem;
+}
+
+@media (min-width: 768px) {
+  .deck-in {
+    padding-inline: 2rem;
+  }
+}
+
+.deck-reels {
+  display: none;
+  gap: 0.55rem;
+}
+
+@media (min-width: 640px) {
+  .deck-reels {
+    display: flex;
+  }
+}
+
+/* On the dark shell the reels read as chrome, not pencil. */
+.deck .reel {
+  width: 1.5rem;
+  height: 1.5rem;
+  border-color: #6f6555;
+  background:
+    radial-gradient(circle at center, var(--shell) 0 22%, transparent 23%),
+    conic-gradient(
+      from 0deg,
+      #cbbfa6 0 8%,
+      transparent 8% 25%,
+      #cbbfa6 25% 33%,
+      transparent 33% 50%,
+      #cbbfa6 50% 58%,
+      transparent 58% 75%,
+      #cbbfa6 75% 83%,
+      transparent 83%
+    );
+}
+
+.deck-meta {
+  display: none;
+  min-width: 0;
+  flex: 0 1 13rem;
+}
+
+@media (min-width: 880px) {
+  .deck-meta {
+    display: block;
+  }
+}
+
+.deck-now {
+  margin: 0;
+  font-family: var(--font-slip), ui-monospace, monospace;
+  font-size: 0.5625rem;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--hammer);
+}
+
+.deck-title {
+  margin: 0.1rem 0 0;
+  font-family: var(--font-hand), ui-sans-serif, sans-serif;
+  font-size: 1rem;
+  line-height: 1.15;
+  color: var(--paper);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.deck-artist {
+  margin: 0;
+  font-family: var(--font-slip), ui-monospace, monospace;
+  font-size: 0.625rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #9a8f7c;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.deck-frame {
+  flex: 1 1 auto;
+  min-width: 0;
+  width: 100%;
+  border: 0;
+  border-radius: 10px;
+}
+
+.deck-eject {
+  flex-shrink: 0;
+  width: 2.25rem;
+  height: 2.25rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid #58503f;
+  border-radius: 2px;
+  background: transparent;
+  color: var(--paper);
+  font-size: 1rem;
+  line-height: 1;
+  cursor: pointer;
+  transition: background 0.14s ease, border-color 0.14s ease;
+}
+
+.deck-eject:hover {
+  background: var(--hammer);
+  border-color: var(--hammer);
+  color: #fff;
+}
+
+/* Room at the end of the page so the deck never sits on the last label. */
+.deck-space {
+  height: 6.5rem;
+}
+
 .scroll-x {
   overflow-x: auto;
   scrollbar-width: thin;
@@ -873,7 +1165,8 @@ textarea {
 
 @media (prefers-reduced-motion: reduce) {
   .settle,
-  .live-dot {
+  .live-dot,
+  .reel-spin {
     animation: none !important;
   }
 

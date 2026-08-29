@@ -20,7 +20,7 @@ const WHEN: { id: TimeFilter; label: string }[] = [
 export function HomeBoard() {
   const { spots, activity, prevRanks, registerClick } = useBoard();
   const { stats } = useVisitorStats();
-  const [bid, setBid] = useState(1);
+  const [targetRank, setTargetRank] = useState(1);
   const [genre, setGenre] = useState<GenreFilter>("All");
   const [when, setWhen] = useState<TimeFilter>("all");
   const formRef = useRef<HTMLFormElement>(null);
@@ -42,19 +42,20 @@ export function HomeBoard() {
   const runnerUp = spots[1]?.bid ?? 0;
 
   const rack = useMemo(
-    () =>
-      filterSpots(spots, genre, when).filter((s) => s.id !== lead?.id),
+    () => filterSpots(spots, genre, when).filter((s) => s.id !== lead?.id),
     [spots, genre, when, lead?.id],
   );
 
-  const take = useCallback((amount: number) => {
-    setBid(Math.max(1, amount));
+  /** Tapping a slot on the tape carries that position down to the paddle. */
+  const take = useCallback((rank: number) => {
+    setTargetRank(Math.max(1, rank));
     const form = formRef.current;
     form?.scrollIntoView({ behavior: "smooth", block: "center" });
     window.setTimeout(() => {
       form?.querySelector<HTMLInputElement>("#track-url")?.focus();
     }, 420);
   }, []);
+
 
   const open = useCallback(
     (spot: Spot) => {
@@ -67,60 +68,56 @@ export function HomeBoard() {
     <>
       <section className="rack" aria-labelledby="block-heading">
         <h2 id="block-heading" className="sr-only">
-          The lot on the block
+          Side A, track 1
         </h2>
         {lead ? (
-          <BlockLot
-            spot={lead}
-            runnerUp={runnerUp}
-            onTake={take}
-            onOpen={open}
-          />
+          <BlockLot spot={lead} runnerUp={runnerUp} onTake={take} onOpen={open} />
         ) : (
           <div className="card card-bd">
-            <p className="slip">the rack is empty</p>
+            <p className="slip">the tape is blank</p>
             <p className="mt-2 text-sm">
-              Nothing is on the block. Paste a song link below and open the
-              bidding at $1.
+              Nothing is written on it yet. Paste a song link below and take side
+              A · track 1 for $1.
             </p>
           </div>
         )}
 
         <div className="figures mt-3">
           <Figure
-            label="standing bid"
+            label="side a · track 1"
             value={formatUsd(market.topBid, 0)}
             note={
               market.lastBidAt
-                ? `raised ${timeAgo(market.lastBidAt)}`
-                : "bidding is open"
+                ? `last moved ${timeAgo(market.lastBidAt)}`
+                : "the tape is open"
             }
             lead
           />
           <Figure
-            label="takes the lead"
+            label="costs to take it"
             value={formatUsd(market.topBid + 1, 0)}
-            note={`${formatUsd(market.spread, 0)} clear of lot 02`}
+            note={`${formatUsd(market.spread, 0)} clear of track 2`}
           />
           <Figure
-            label="lots on the rack"
+            label="songs on the tape"
             value={formatInt(market.tracks)}
-            note={`${formatUsd(market.volume, 0)} standing in total`}
+            note={`${formatUsd(market.volume, 0)} written on in total`}
           />
           <Figure
-            label="in the room"
+            label="listening now"
             value={formatInt(stats?.liveNow ?? 0)}
             note={`${formatInt(stats?.viewsToday ?? 0)} views today`}
           />
         </div>
       </section>
 
+
       <section className="rack band" id="rack" aria-labelledby="rack-heading">
         <div className="mb-4 flex flex-wrap items-end justify-between gap-4">
           <div>
-            <p className="slip">lot 02 and below</p>
+            <p className="slip">track 2 to the end of side b</p>
             <h2 id="rack-heading" className="marquee mt-1.5 text-2xl">
-              The rack
+              The rest of the tape
             </h2>
           </div>
           <div className="flex flex-wrap items-center gap-1.5">
@@ -170,8 +167,9 @@ export function HomeBoard() {
           <div className="card card-bd">
             <p className="slip">nothing on this shelf</p>
             <p className="mt-2 text-sm">
-              No lots match {genre === "All" ? "that window" : `the ${genre} shelf`}.
-              Clear the filters, or bid a song onto it.
+              No songs match{" "}
+              {genre === "All" ? "that window" : `the ${genre} shelf`}. Clear the
+              filters, or write one onto the tape yourself.
             </p>
           </div>
         )}
@@ -179,17 +177,17 @@ export function HomeBoard() {
 
       <section className="rack band dashed-t" id="bid" aria-labelledby="bid-heading">
         <div className="mb-4">
-          <p className="slip">raise your hand</p>
+          <p className="slip">pick a slot · pay for it · it&rsquo;s yours</p>
           <h2 id="bid-heading" className="marquee mt-1.5 text-2xl">
-            Place a bid
+            Put a song on the tape
           </h2>
         </div>
 
         <div className="grid gap-6 lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
           <BidTicket
-            bid={bid}
-            setBid={setBid}
-            onConfirmed={() => setBid(1)}
+            targetRank={targetRank}
+            setTargetRank={setTargetRank}
+            onConfirmed={() => setTargetRank(1)}
             formRef={formRef}
           />
 
@@ -199,9 +197,10 @@ export function HomeBoard() {
             <section className="card" aria-labelledby="filled">
               <div className="card-hd">
                 <h3 id="filled" className="slip">
-                  recently filled
+                  just written on
                 </h3>
               </div>
+
               <div className="card-bd">
                 {activity.length > 0 ? (
                   <ul>
@@ -223,7 +222,7 @@ export function HomeBoard() {
                     ))}
                   </ul>
                 ) : (
-                  <p className="text-sm chrome">No bids filled yet.</p>
+                  <p className="text-sm chrome">Nothing written on yet.</p>
                 )}
               </div>
             </section>

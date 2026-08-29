@@ -1,15 +1,15 @@
 import { ImageResponse } from "next/og";
 
 export const runtime = "edge";
-export const alt = "PlaylistBid — pay for the top of the board";
+export const alt = "PlaylistBid — pick the track, pay for the slot";
 export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
 
-const PAPER = "#efeee8";
-const INK = "#15171b";
-const HAMMER = "#ce2b37";
-const PRESS = "#16307a";
-const CHROME = "#8c9099";
+const PAPER = "#efe3c8";
+const INK = "#2a2118";
+const HAMMER = "#c2402b";
+const PRESS = "#2c4a7c";
+const CHROME = "#8a7c65";
 
 export default function OpenGraphImage() {
   return new ImageResponse(
@@ -49,7 +49,7 @@ export default function OpenGraphImage() {
               fontWeight: 800,
             }}
           >
-            B1
+            A1
           </div>
           <div style={{ fontSize: 34, fontWeight: 800, letterSpacing: 1 }}>
             PLAYLIST<span style={{ color: HAMMER }}>BID</span>
@@ -63,7 +63,7 @@ export default function OpenGraphImage() {
               fontWeight: 700,
             }}
           >
-            INDEPENDENT SONG AUCTION
+            ONE TAPE · EVERY SLOT HAS A PRICE
           </div>
         </div>
 
@@ -74,13 +74,12 @@ export default function OpenGraphImage() {
             lineHeight: 1.02,
             letterSpacing: -1,
             maxWidth: 900,
-            textTransform: "uppercase",
           }}
         >
-          Pay for the top of the board.
+          Pick the track. Pay for the slot.
         </div>
 
-        {/* One title strip, the way the site prints them. */}
+        {/* One cassette label, the way the site writes them. */}
         <div
           style={{
             marginTop: 44,
@@ -104,7 +103,7 @@ export default function OpenGraphImage() {
               fontWeight: 800,
             }}
           >
-            01
+            A1
           </div>
           <div
             style={{
@@ -117,7 +116,7 @@ export default function OpenGraphImage() {
           >
             <div style={{ display: "flex", flexDirection: "column" }}>
               <div style={{ fontSize: 30, fontWeight: 700 }}>
-                Highest standing bid holds lot 01
+                Buy side A · track 1 and the song lands there
               </div>
               <div
                 style={{
@@ -128,7 +127,7 @@ export default function OpenGraphImage() {
                   textTransform: "uppercase",
                 }}
               >
-                Bidding opens at $1 · PayPal or UPI · live house ledger
+                A dollar clear of the holder · PayPal or UPI · live liner notes
               </div>
             </div>
             <div style={{ fontSize: 52, fontWeight: 800, color: HAMMER }}>$1+</div>

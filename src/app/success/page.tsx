@@ -1,31 +1,50 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { SiteFooter, SiteHeader } from "@/components/chrome";
 import { useBoard } from "@/lib/board-context";
 import { formatUsd } from "@/lib/format";
 import { clearPendingBid, readPendingBid } from "@/lib/pending-bid";
+import { rankOf, sideOf, trackOnSide } from "@/lib/ranks";
 import { spotifyTrackUrl } from "@/lib/spotify";
 import type { Genre } from "@/lib/types";
 
 // Transactional page; kept out of search indexes via robots.ts disallow.
 
+type Landed = {
+  title: string;
+  bid: number;
+  /** Where it ended up. */
+  rank: number;
+  /** Where it was paid to go, when the pending bid recorded one. */
+  paidFor?: number;
+};
+
+function slot(rank: number) {
+  return `side ${sideOf(rank)} · track ${trackOnSide(rank)}`;
+}
+
 export default function SuccessPage() {
-  const { placeBid } = useBoard();
-  const [message, setMessage] = useState("Matching your payment to a pending bid…");
-  const [filled, setFilled] = useState<{ title: string; bid: number } | null>(null);
+  const { hydrated, placeBid } = useBoard();
+  const [message, setMessage] = useState("Reading the tape…");
+  const [landed, setLanded] = useState<Landed | null>(null);
+  const done = useRef(false);
 
   useEffect(() => {
+    // Wait for the saved tape, or this write lands on the seed and is discarded.
+    if (!hydrated || done.current) return;
+    done.current = true;
+
     const pending = readPendingBid();
     if (!pending) {
       setMessage(
-        "This browser has no pending bid. If you already paid, go back to the rack and place the same bid again, or reach out with your receipt.",
+        "This browser has no payment waiting. If you already paid, go back to the tape and pick the same slot again, or reach out with your receipt.",
       );
       return;
     }
 
-    const spot = placeBid({
+    const { spot, spots: after } = placeBid({
       trackId: pending.trackId,
       trackUrl: spotifyTrackUrl(pending.trackId),
       title: pending.title,
@@ -36,9 +55,22 @@ export default function SuccessPage() {
       askingPrice: pending.askingPrice,
     });
     clearPendingBid();
-    setFilled({ title: spot.title, bid: spot.bid });
-    setMessage("Your lot is printed on the rack.");
-  }, [placeBid]);
+
+    // Read the tape back after the write rather than assuming it obeyed.
+    const rank = rankOf(after, spot.trackId) ?? pending.targetRank ?? 1;
+
+    setLanded({
+      title: spot.title,
+      bid: spot.bid,
+      rank,
+      paidFor: pending.targetRank,
+    });
+    setMessage(
+      pending.targetRank && rank > pending.targetRank
+        ? `Someone took ${slot(pending.targetRank)} while you were paying, so the song sits at ${slot(rank)}. Pick that slot again to move up.`
+        : `Written on. Everything from that slot down shifted one track later.`,
+    );
+  }, [hydrated, placeBid]);
 
   return (
     <>
@@ -50,42 +82,54 @@ export default function SuccessPage() {
         >
           <div className="paddle-hd">
             <h1 id="receipt-heading" className="slip">
-              fill receipt
+              tape receipt
             </h1>
             <span className="slip" style={{ color: "var(--paper)" }}>
-              {filled ? "filled" : "pending"}
+              {landed ? "on the tape" : "nothing waiting"}
             </span>
           </div>
           <div className="paddle-bd">
             <p className="marquee text-3xl">
-              {filled ? "Bid filled" : "Nothing to fill"}
+              {landed ? slot(landed.rank) : "Nothing to write on"}
             </p>
             <p className="mt-3 leading-relaxed chrome">{message}</p>
 
-            {filled && (
+            {landed && (
               <ul className="mt-5">
                 <li className="lrow">
                   <span className="slip slip-quiet">song</span>
                   <span className="truncate text-sm font-medium">
-                    {filled.title}
+                    {landed.title}
                   </span>
                 </li>
                 <li className="lrow">
-                  <span className="slip slip-quiet">standing bid</span>
+                  <span className="slip slip-quiet">paid for</span>
+                  <span className="text-sm">
+                    {landed.paidFor ? slot(landed.paidFor) : "the open end"}
+                  </span>
+                </li>
+                <li className="lrow">
+                  <span className="slip slip-quiet">landed at</span>
                   <span className="marquee text-xl hammer">
-                    {formatUsd(filled.bid, 0)}
+                    {slot(landed.rank)}
+                  </span>
+                </li>
+                <li className="lrow">
+                  <span className="slip slip-quiet">holding</span>
+                  <span className="marquee text-xl">
+                    {formatUsd(landed.bid, 0)}
                   </span>
                 </li>
               </ul>
             )}
 
             <p className="mt-5 text-xs leading-relaxed chrome">
-              This lot number is a position on PlaylistBid only — not on Spotify
+              This position is a slot on PlaylistBid only — not on Spotify
               charts, playlists or stream counts.
             </p>
 
             <Link href="/" className="btn btn-hammer btn-lg mt-6 w-full">
-              Back to the rack
+              Back to the tape
             </Link>
           </div>
         </section>

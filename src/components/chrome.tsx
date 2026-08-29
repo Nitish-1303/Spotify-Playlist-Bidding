@@ -8,9 +8,9 @@ import { PAYPAL_ME_URL, SITE_NAME } from "@/lib/site";
 import { useVisitorStats } from "@/lib/visitor-stats";
 
 const NAV = [
-  { href: "/", label: "The rack" },
-  { href: "/stats", label: "Ledger" },
-  { href: "/rules", label: "Conditions" },
+  { href: "/", label: "The tape" },
+  { href: "/stats", label: "Liner notes" },
+  { href: "/rules", label: "How it works" },
 ] as const;
 
 export function SiteHeader() {
@@ -37,10 +37,14 @@ export function SiteHeader() {
             </nav>
           </div>
 
-          <Link href="/stats" className="live shrink-0" title="Visitors in the room now">
+          <Link
+            href="/stats"
+            className="live shrink-0"
+            title="People listening right now"
+          >
             <span className="live-dot" aria-hidden />
             <span className="slip" style={{ color: "var(--hammer)" }}>
-              {typeof live === "number" ? formatInt(live) : "—"} in the room
+              {typeof live === "number" ? formatInt(live) : "—"} listening
             </span>
           </Link>
         </div>
@@ -89,12 +93,12 @@ export function SiteFooter() {
           Independent fan project · no connection to Spotify AB
         </div>
         <p className="max-w-3xl text-xs leading-relaxed chrome">
-          {SITE_NAME} is an independent fan billboard. It is not affiliated
-          with, endorsed by, sponsored by, or connected to Spotify AB, and
-          Spotify is a trademark of Spotify AB. Titles, artwork and playback
-          come from Spotify&apos;s public oEmbed endpoint and official embedded
-          player. A lot number here is a position on this site — it does not
-          change Spotify playlists, charts or streams.
+          {SITE_NAME} is an independent fan mixtape. It is not affiliated with,
+          endorsed by, sponsored by, or connected to Spotify AB, and Spotify is a
+          trademark of Spotify AB. Titles, artwork and playback come from
+          Spotify&apos;s public oEmbed endpoint and official embedded player. A
+          track position here is a slot on this site — it does not change Spotify
+          playlists, charts or streams.
         </p>
       </div>
     </footer>
