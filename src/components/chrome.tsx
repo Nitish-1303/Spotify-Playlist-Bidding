@@ -19,31 +19,46 @@ export function SiteHeader() {
   const live = stats?.liveNow;
 
   return (
-    <header className="masthead">
-      <div className="rack flex h-16 items-center justify-between gap-4">
-        <div className="flex min-w-0 items-center gap-6 sm:gap-9">
-          <Logo />
-          <nav className="hidden items-center gap-6 sm:flex">
-            {NAV.map((item) => (
-              <Link
-                key={item.href}
-                href={item.href}
-                className={`nav ${pathname === item.href ? "nav-on" : ""}`}
-              >
-                {item.label}
-              </Link>
-            ))}
-          </nav>
-        </div>
+    <>
+      <header className="masthead">
+        <div className="rack flex h-16 items-center justify-between gap-4">
+          <div className="flex min-w-0 items-center gap-6 sm:gap-9">
+            <Logo />
+            <nav className="hidden items-center gap-6 sm:flex">
+              {NAV.map((item) => (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  className={`nav ${pathname === item.href ? "nav-on" : ""}`}
+                >
+                  {item.label}
+                </Link>
+              ))}
+            </nav>
+          </div>
 
-        <Link href="/stats" className="live shrink-0" title="Visitors in the room now">
-          <span className="live-dot" aria-hidden />
-          <span className="slip" style={{ color: "var(--hammer)" }}>
-            {typeof live === "number" ? formatInt(live) : "—"} in the room
+          <Link href="/stats" className="live shrink-0" title="Visitors in the room now">
+            <span className="live-dot" aria-hidden />
+            <span className="slip" style={{ color: "var(--hammer)" }}>
+              {typeof live === "number" ? formatInt(live) : "—"} in the room
+            </span>
+          </Link>
+        </div>
+      </header>
+
+      <div className="disclaim">
+        <p className="rack disclaim-in">
+          <span className="disclaim-mark">not spotify</span>
+          <span className="disclaim-text">
+            {SITE_NAME} is an independent fan project — not affiliated with,
+            endorsed by, or connected to Spotify AB.
           </span>
-        </Link>
+          <Link href="/rules" className="slip tie">
+            what that means
+          </Link>
+        </p>
       </div>
-    </header>
+    </>
   );
 }
 
@@ -69,9 +84,14 @@ export function SiteFooter() {
             </a>
           </div>
         </div>
+        <div className="stamp">
+          <b>not affiliated with spotify</b>
+          Independent fan project · no connection to Spotify AB
+        </div>
         <p className="max-w-3xl text-xs leading-relaxed chrome">
-          {SITE_NAME} is an independent fan billboard. It is not affiliated with,
-          endorsed by, or connected to Spotify AB. Titles, artwork and playback
+          {SITE_NAME} is an independent fan billboard. It is not affiliated
+          with, endorsed by, sponsored by, or connected to Spotify AB, and
+          Spotify is a trademark of Spotify AB. Titles, artwork and playback
           come from Spotify&apos;s public oEmbed endpoint and official embedded
           player. A lot number here is a position on this site — it does not
           change Spotify playlists, charts or streams.

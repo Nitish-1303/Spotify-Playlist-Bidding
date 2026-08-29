@@ -49,7 +49,7 @@ export default function Page() {
           rack for everyone to read. A lot number is a position on this site — it
           does not change Spotify playlists, charts or streams.
         </p>
-        <div className="mt-7 flex flex-wrap gap-2.5">
+        <div className="mt-7 flex flex-wrap items-center gap-2.5">
           <a href="#bid" className="btn btn-hammer btn-lg">
             Raise your hand
           </a>
@@ -59,6 +59,10 @@ export default function Page() {
           <Link href="/stats" className="btn btn-press btn-lg">
             House ledger
           </Link>
+          <div className="stamp ml-1">
+            <b>not affiliated with spotify</b>
+            Independent fan project · no connection to Spotify AB
+          </div>
         </div>
       </section>
 

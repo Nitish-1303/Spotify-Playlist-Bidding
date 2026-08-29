@@ -716,6 +716,137 @@ textarea {
   }
 }
 
+/* ── independence notice ─────────────────────────────────────── */
+
+/* Site-wide strip under the masthead: this is not Spotify. */
+.disclaim {
+  background: var(--hammer-wash);
+  border-bottom: 1px dashed var(--hammer);
+}
+
+.disclaim-in {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.45rem 0.7rem;
+  padding-block: 0.5rem;
+}
+
+.disclaim-mark {
+  padding: 0.15rem 0.45rem;
+  border-radius: 2px;
+  background: var(--hammer);
+  color: #fff;
+  font-family: var(--font-slip), ui-monospace, monospace;
+  font-size: 0.625rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.disclaim-text {
+  font-family: var(--font-slip), ui-monospace, monospace;
+  font-size: 0.6875rem;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--ink);
+}
+
+/* Rubber-stamped mark for the hero and the ledger. */
+.stamp {
+  display: inline-block;
+  padding: 0.5rem 0.8rem;
+  border: 2.5px solid var(--hammer);
+  border-radius: 3px;
+  color: var(--hammer);
+  font-family: var(--font-slip), ui-monospace, monospace;
+  font-size: 0.6875rem;
+  font-weight: 700;
+  letter-spacing: 0.13em;
+  line-height: 1.5;
+  text-transform: uppercase;
+  transform: rotate(-2.2deg);
+}
+
+.stamp b {
+  display: block;
+  font-family: var(--font-marquee), sans-serif;
+  font-size: 1.0625rem;
+  font-weight: 400;
+  letter-spacing: 0.05em;
+}
+
+/* ── pay with (branded) ──────────────────────────────────────── */
+
+/* Logos stay on card stock so the brand colours read true; only the
+   frame and the amount change when an option is chosen. */
+.pay {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  min-height: 3rem;
+  padding: 0.5rem 0.85rem;
+  border: 1.5px solid var(--edge);
+  border-radius: 3px;
+  background: var(--strip);
+  cursor: pointer;
+  text-align: left;
+  transition: border-color 0.14s ease, box-shadow 0.14s ease;
+}
+
+.pay:hover {
+  border-color: var(--ink);
+}
+
+.pay.pay-on,
+.pay.pay-on:hover {
+  border-color: var(--hammer);
+  border-width: 2px;
+  box-shadow: inset 0 -3px 0 var(--hammer-wash);
+}
+
+.paymark {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.paymark svg {
+  display: block;
+  flex-shrink: 0;
+}
+
+.paymark-word {
+  font-family: var(--font-body), ui-sans-serif, system-ui, sans-serif;
+  font-size: 0.9375rem;
+  font-style: italic;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  white-space: nowrap;
+}
+
+.paymark-word b {
+  font-weight: 700;
+}
+
+.pay-meta {
+  margin-left: auto;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.pay-amt {
+  font-family: var(--font-marquee), sans-serif;
+  font-size: 1.0625rem;
+  line-height: 1.1;
+  color: var(--ink);
+}
+
+.pay-on .pay-amt {
+  color: var(--hammer);
+}
+
 /* ── notices ─────────────────────────────────────────────────── */
 
 .notice {

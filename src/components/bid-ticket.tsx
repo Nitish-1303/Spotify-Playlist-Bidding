@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { PayPalMark, UpiMark } from "@/components/pay-marks";
 import { useBoard } from "@/lib/board-context";
 import { formatUsd } from "@/lib/format";
 import {
@@ -142,13 +143,16 @@ export function BidTicket({ bid, setBid, onConfirmed, formRef }: BidTicketProps)
       {pending && (
         <div className="notice m-4 mb-0">
           <p className="slip" style={{ color: "var(--hammer)" }}>
-            waiting on your {pending.method === "upi" ? "upi" : "paypal"} payment
+            waiting on your payment
           </p>
-          <p className="mt-1.5 text-sm">
-            {pending.title} at {formatUsd(pending.bid, 0)}
-            {pending.method === "upi"
-              ? ` — ${formatInr(bidToInr(pending.bid))} to ${UPI_ID}`
-              : ""}
+          <p className="mt-1.5 flex flex-wrap items-center gap-2 text-sm">
+            {pending.method === "upi" ? <UpiMark /> : <PayPalMark />}
+            <span>
+              {pending.title} at {formatUsd(pending.bid, 0)}
+              {pending.method === "upi"
+                ? ` — ${formatInr(bidToInr(pending.bid))} to ${UPI_ID}`
+                : ""}
+            </span>
           </p>
           <div className="mt-3 flex flex-wrap gap-2">
             <button type="button" className="btn btn-hammer" onClick={confirmPaid}>
@@ -245,20 +249,30 @@ export function BidTicket({ bid, setBid, onConfirmed, formRef }: BidTicketProps)
 
         <div className="dashed-t pt-4">
           <span className="slip label">pay with</span>
-          <div className="flex flex-wrap items-center gap-2">
+          <div className="grid gap-2 sm:grid-cols-2">
             <button
               type="button"
               onClick={() => setMethod("paypal")}
-              className={`punch ${method === "paypal" ? "punch-on" : ""}`}
+              className={`pay ${method === "paypal" ? "pay-on" : ""}`}
+              aria-pressed={method === "paypal"}
             >
-              PayPal · {formatUsd(bid, 0)}
+              <PayPalMark />
+              <span className="pay-meta">
+                <span className="pay-amt">{formatUsd(bid, 0)}</span>
+                <span className="slip slip-quiet block">worldwide</span>
+              </span>
             </button>
             <button
               type="button"
               onClick={() => setMethod("upi")}
-              className={`punch ${method === "upi" ? "punch-on" : ""}`}
+              className={`pay ${method === "upi" ? "pay-on" : ""}`}
+              aria-pressed={method === "upi"}
             >
-              UPI · India · {formatInr(inr)}
+              <UpiMark />
+              <span className="pay-meta">
+                <span className="pay-amt">{formatInr(inr)}</span>
+                <span className="slip slip-quiet block">india</span>
+              </span>
             </button>
           </div>
         </div>
@@ -271,8 +285,8 @@ export function BidTicket({ bid, setBid, onConfirmed, formRef }: BidTicketProps)
           {busy
             ? "Opening checkout…"
             : method === "upi"
-              ? `Pay ${formatInr(inr)}`
-              : `Pay ${formatUsd(bid, 0)}`}
+              ? `Pay ${formatInr(inr)} with UPI`
+              : `Pay ${formatUsd(bid, 0)} with PayPal`}
         </button>
 
         {status && (
