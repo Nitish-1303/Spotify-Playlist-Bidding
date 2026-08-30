@@ -1,10 +1,6 @@
 import "./globals.css";
 import type { Metadata, Viewport } from "next";import { Analytics } from "@vercel/analytics/next";
-import {
-  Courier_Prime,
-  Instrument_Sans,
-  Permanent_Marker,
-} from "next/font/google";
+import { Figtree } from "next/font/google";
 import { BoardProvider } from "@/lib/board-context";
 import { NowPlayingProvider } from "@/lib/now-playing";
 import { VisitorStatsProvider } from "@/lib/visitor-stats";
@@ -17,27 +13,12 @@ import {
 } from "@/lib/site";
 
 /**
- * Marker face — song titles, prices and headlines, as if someone wrote them
- * onto the cassette label by hand. Nowhere else.
+ * One family, the full weight range. Headings and prices run at 800 and the
+ * interface at 400–600, which is where the whole visual hierarchy comes from.
  */
-const hand = Permanent_Marker({
-  subsets: ["latin"],
-  weight: "400",
-  variable: "--font-hand",
-  display: "swap",
-});
-
-const body = Instrument_Sans({
+const sans = Figtree({
   subsets: ["latin"],
   variable: "--font-body",
-  display: "swap",
-});
-
-/** Typewriter face for the typed parts of a tape label: sides, tracks, counts. */
-const slip = Courier_Prime({
-  subsets: ["latin"],
-  weight: ["400", "700"],
-  variable: "--font-slip",
   display: "swap",
 });
 
@@ -88,7 +69,7 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: "#efe3c8",
+  themeColor: "#0a0a0b",
 };
 
 export default function RootLayout({
@@ -97,12 +78,8 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html
-      lang="en"
-      className={`${hand.variable} ${body.variable} ${slip.variable}`}
-      suppressHydrationWarning
-    >
-      <body className={body.className} suppressHydrationWarning>
+    <html lang="en" className={sans.variable} suppressHydrationWarning>
+      <body className={sans.className} suppressHydrationWarning>
         <BoardProvider>
           <VisitorStatsProvider>
             <NowPlayingProvider>

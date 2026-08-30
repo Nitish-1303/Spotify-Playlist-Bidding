@@ -16,11 +16,6 @@ export function MiniPlayer() {
       <div className="deck-space" aria-hidden />
       <div className="deck" role="region" aria-label="Now playing">
         <div className="deck-in">
-          <span className="deck-reels" aria-hidden>
-            <span className="reel reel-spin" />
-            <span className="reel reel-spin" />
-          </span>
-
           <div className="deck-meta">
             <p className="deck-now">now playing</p>
             <p className="deck-title">{track.title}</p>
@@ -36,6 +31,17 @@ export function MiniPlayer() {
             loading="lazy"
             allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture"
           />
+
+          {/*
+            The deck is a strip of screen with no room for a sentence, so the
+            disclosure is announced rather than printed. It is printed in full
+            on the tape above, at the paddle, and in the footer.
+          */}
+          <p className="sr-only">
+            Playback is provided by Spotify&apos;s official embedded player.
+            PlaylistBid is an independent fan project and is not affiliated
+            with, endorsed by, sponsored by, or connected to Spotify AB.
+          </p>
 
           <button
             type="button"

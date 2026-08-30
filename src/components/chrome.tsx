@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Logo } from "@/components/logo";
 import { formatInt } from "@/lib/format";
-import { SITE_NAME } from "@/lib/site";
+import { PAYMENT_PROVIDER, SITE_NAME } from "@/lib/site";
 import { useVisitorStats } from "@/lib/visitor-stats";
 
 const NAV = [
@@ -50,14 +50,25 @@ export function SiteHeader() {
         </div>
       </header>
 
+      {/*
+        The compact disclosure, carried on every page. On a phone it holds to a
+        single typed line — the full sentence wraps to three and pushes the tape
+        below the fold — and the card below the hero states it in full, with the
+        same link, a screen's-length away.
+      */}
       <div className="disclaim">
         <p className="rack disclaim-in">
-          <span className="disclaim-mark">not spotify</span>
-          <span className="disclaim-text">
-            {SITE_NAME} is an independent fan project — not affiliated with,
-            endorsed by, or connected to Spotify AB.
+          <span className="disclaim-mark">
+            independent<span className="hidden sm:inline"> fan project</span>
           </span>
-          <Link href="/rules" className="slip tie">
+          <span className="disclaim-text">
+            <span className="sm:hidden">Not affiliated with Spotify</span>
+            <span className="hidden sm:inline">
+              Not affiliated with, endorsed by, sponsored by, or connected to
+              Spotify AB
+            </span>
+          </span>
+          <Link href="/rules" className="slip tie hidden sm:inline">
             what that means
           </Link>
         </p>
@@ -68,7 +79,7 @@ export function SiteHeader() {
 
 export function SiteFooter() {
   return (
-    <footer className="mt-16 border-t-2" style={{ borderColor: "var(--press)" }}>
+    <footer className="mt-16 border-t" style={{ borderColor: "var(--edge)" }}>
       <div className="rack space-y-6 py-9">
         <div className="flex flex-wrap items-center justify-between gap-5">
           <Logo />
@@ -84,14 +95,23 @@ export function SiteFooter() {
           <b>not affiliated with spotify</b>
           Independent fan project · no connection to Spotify AB
         </div>
-        <p className="max-w-3xl text-xs leading-relaxed chrome">
-          {SITE_NAME} is an independent fan mixtape. It is not affiliated with,
-          endorsed by, sponsored by, or connected to Spotify AB, and Spotify is a
-          trademark of Spotify AB. Titles, artwork and playback come from
-          Spotify&apos;s public oEmbed endpoint and official embedded player. A
-          track position here is a slot on this site — it does not change Spotify
-          playlists, charts or streams.
-        </p>
+        {/* The full legal disclosure. Kept verbatim, and kept last. */}
+        <div className="max-w-3xl space-y-2 text-xs leading-relaxed">
+          <p>
+            {SITE_NAME} is an independent fan project. It is not affiliated
+            with, endorsed by, sponsored by, or connected to Spotify AB. Spotify
+            is a trademark of Spotify AB.
+          </p>
+          <p>
+            Track positions exist only on {SITE_NAME} and do not change Spotify
+            playlists, charts, rankings, or streams.
+          </p>
+          <p className="chrome">
+            Song titles, artwork and playback come from Spotify&apos;s public
+            oEmbed endpoint and its official embedded player. Card payments are
+            handled by {PAYMENT_PROVIDER} on their own hosted checkout.
+          </p>
+        </div>
       </div>
     </footer>
   );

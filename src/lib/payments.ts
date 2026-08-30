@@ -1,58 +1,108 @@
-/**
- * Checkout lives behind our own API route: the browser asks for a session, the
- * server talks to Dodo Payments with the secret key and hands back a hosted
- * checkout URL. The amount is never taken from the client's word alone — the
- * route re-derives it from the bid it was sent and rejects anything under $1.
- */
+"use client";
 
-export type CheckoutRequest = {
-  trackId: string;
-  bid: number;
-  title: string;
-  artist: string;
-  thumbnailUrl: string;
-  genre: string;
-  /** The track position being bought, carried into Dodo's metadata. */
-  targetRank: number;
-};
+import type { PaymentStatus } from "./types";
 
-export type CheckoutSession = {
-  checkoutUrl: string;
-  sessionId?: string;
-};
-
-/** Thrown when Dodo has not been given keys yet, so nothing can be charged. */
+/** Thrown when card payments have not been switched on yet. */
 export class CheckoutNotConfiguredError extends Error {}
 
+export type StartCheckoutInput = {
+  /** A Spotify track link. */
+  track: string;
+  /** Slot code such as "A1". The price is worked out on the server. */
+  position: string;
+};
+
+export type StartedCheckout = {
+  transactionId: string;
+  ownerToken: string;
+  checkoutUrl: string;
+  amount: number;
+};
+
 /**
- * Ask the server for a Dodo checkout session. Resolves with the URL to send the
- * payer to, or throws with a message fit to show on the paddle.
+ * Asks the server to price a slot and open a checkout for it.
+ *
+ * Note what is not sent: no amount, no title, no artist. The server prices the
+ * position against the live tape and reads the song's details from Spotify
+ * itself, so nothing here is in a position to lie about either.
  */
-export async function createCheckoutSession(
-  input: CheckoutRequest,
-): Promise<CheckoutSession> {
-  const res = await fetch("/api/bid/checkout", {
+export async function startCheckout(
+  input: StartCheckoutInput,
+): Promise<StartedCheckout> {
+  const res = await fetch("/api/payments/create-checkout", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(input),
   });
-
-  const data = (await res.json()) as {
-    checkout_url?: string;
-    session_id?: string;
+  const data = (await res.json().catch(() => ({}))) as Partial<StartedCheckout> & {
     error?: string;
     unconfigured?: boolean;
-    message?: string;
   };
 
   if (data.unconfigured) {
     throw new CheckoutNotConfiguredError(
-      data.message || "Card payments are not switched on yet.",
+      data.error || "Card payments are not switched on yet.",
     );
   }
-  if (!res.ok || !data.checkout_url) {
-    throw new Error(data.error || "Could not open checkout. Try again.");
+  if (!res.ok || !data.checkoutUrl || !data.transactionId || !data.ownerToken) {
+    throw new Error(data.error || "Unable to start payment. Please try again.");
   }
+  return data as StartedCheckout;
+}
 
-  return { checkoutUrl: data.checkout_url, sessionId: data.session_id };
+export type PaymentView = {
+  status: PaymentStatus;
+  position: string;
+  landedPosition?: string;
+  title: string;
+  artist: string;
+  amount: number;
+  currency: string;
+  note?: string;
+};
+
+/**
+ * The buyer's own payment state, straight from the backend. The redirect back
+ * from Dodo is only a hint that something happened — this is what decides.
+ */
+export async function readPayment(
+  transactionId: string,
+  token: string,
+): Promise<PaymentView | null> {
+  const res = await fetch(
+    `/api/payments/${encodeURIComponent(transactionId)}?token=${encodeURIComponent(token)}`,
+    { headers: { "Cache-Control": "no-store" } },
+  );
+  if (!res.ok) return null;
+  return (await res.json()) as PaymentView;
+}
+
+/* —— the browser's handle on its own payment —— */
+
+const HANDLE_KEY = "playlistbid-payment";
+
+export type PaymentHandle = { transactionId: string; ownerToken: string };
+
+/**
+ * The owner token is kept here and nowhere else. It is the only thing that lets
+ * this browser read its own payment, and it is not a credential for anything
+ * else — losing it costs you the receipt, not the slot.
+ */
+export function savePaymentHandle(handle: PaymentHandle) {
+  try {
+    localStorage.setItem(HANDLE_KEY, JSON.stringify(handle));
+  } catch {
+    /* private browsing with storage denied — the redirect still carries the id */
+  }
+}
+
+export function readPaymentHandle(): PaymentHandle | null {
+  try {
+    const raw = localStorage.getItem(HANDLE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as PaymentHandle;
+    return parsed?.transactionId && parsed?.ownerToken ? parsed : null;
+  } catch {
+    return null;
+  }
 }

@@ -1,12 +1,14 @@
 "use client";
 
 import { useMemo, useRef, useState } from "react";
+import { PurchaseScopeNote } from "@/components/independence";
 import { DodoMark } from "@/components/pay-marks";
 import { useBoard } from "@/lib/board-context";
 import { formatUsd } from "@/lib/format";
 import {
   CheckoutNotConfiguredError,
-  createCheckoutSession,
+  savePaymentHandle,
+  startCheckout,
 } from "@/lib/payments";
 import {
   chartOrder,
@@ -14,18 +16,17 @@ import {
   priceForRank,
   rankOf,
   sideOf,
+  slotCode,
   trackOnSide,
 } from "@/lib/ranks";
-import { saveReceipt } from "@/lib/receipt";
 import { PAYMENT_PROVIDER } from "@/lib/site";
-import { parseSpotifyTrackId, spotifyTrackUrl } from "@/lib/spotify";
-import { GENRES, type Genre, type Spot } from "@/lib/types";
+import { parseSpotifyTrackId } from "@/lib/spotify";
 
 type BidTicketProps = {
   /** The track position being bought. Price follows from it, not the reverse. */
   targetRank: number;
   setTargetRank: (next: number) => void;
-  onConfirmed: (spot: Spot) => void;
+  onStarted: () => void;
   formRef?: React.RefObject<HTMLFormElement | null>;
 };
 
@@ -36,18 +37,21 @@ export function slotLabel(rank: number) {
 
 /**
  * The paddle: paste a song, pick the track position you want, and pay what that
- * position costs. The price is never typed in — it is whatever it takes to sit
- * where you pointed, and where it sits follows from the price.
+ * position costs.
+ *
+ * The prices shown here are the tape's own arithmetic, for the buyer to read.
+ * They are not what gets charged — the server prices the slot again when it
+ * opens the checkout, so nothing typed or tampered with in this page can change
+ * what a slot costs.
  */
 export function BidTicket({
   targetRank,
   setTargetRank,
-  onConfirmed,
+  onStarted,
   formRef,
 }: BidTicketProps) {
-  const { spots, placeBid } = useBoard();
+  const { spots, durable } = useBoard();
   const [url, setUrl] = useState("");
-  const [genre, setGenre] = useState<Exclude<Genre, "All">>("Pop");
   const [status, setStatus] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const localRef = useRef<HTMLFormElement>(null);
@@ -91,68 +95,25 @@ export function BidTicket({
     setBusy(true);
     setStatus(null);
     try {
-      const res = await fetch(`/api/track?id=${encodeURIComponent(trackId)}`);
-      const meta = (await res.json()) as {
-        title?: string;
-        artist?: string;
-        thumbnailUrl?: string;
-        error?: string;
-      };
-      if (!res.ok || !meta.title) {
-        throw new Error(meta.error || "Could not load that track.");
-      }
+      const started = await startCheckout({ track: url, position: slotCode(rank) });
 
-      // Checkout first: if Dodo will not open, nothing goes on the tape.
-      const { checkoutUrl } = await createCheckoutSession({
-        trackId,
-        bid,
-        title: meta.title,
-        artist: meta.artist || "Unknown artist",
-        thumbnailUrl: meta.thumbnailUrl || "",
-        genre,
-        targetRank: rank,
-      });
-
-      // The song goes on the tape at the price being paid, and the price is what
-      // decides the position. No confirmation step in between.
-      const { spot, spots: after } = placeBid({
-        trackId,
-        trackUrl: spotifyTrackUrl(trackId),
-        title: meta.title,
-        artist: meta.artist || "Unknown artist",
-        thumbnailUrl: meta.thumbnailUrl || "",
-        genre,
-        bid,
-      });
-      const landed = rankOf(after, spot.trackId) ?? rank;
-
-      saveReceipt({
-        trackId,
-        trackUrl: spot.trackUrl,
-        title: spot.title,
-        artist: spot.artist,
-        bid: spot.bid,
-        targetRank: rank,
-        landedRank: landed,
+      // Kept so the receipt page can ask the backend how the payment went. It
+      // is not proof of anything by itself.
+      savePaymentHandle({
+        transactionId: started.transactionId,
+        ownerToken: started.ownerToken,
       });
 
       setUrl("");
-      onConfirmed(spot);
-      setStatus(
-        `${spot.title} is on the tape at ${slotLabel(landed)}. Pay ${formatUsd(
-          spot.bid,
-          0,
-        )} to keep it there.`,
-      );
-
-      window.location.assign(checkoutUrl);
+      onStarted();
+      window.location.assign(started.checkoutUrl);
     } catch (err) {
       setStatus(
         err instanceof CheckoutNotConfiguredError
-          ? `${err.message} Nothing was written on the tape.`
+          ? `${err.message} Nothing on the tape has changed.`
           : err instanceof Error
             ? err.message
-            : "Could not open checkout.",
+            : "Unable to start payment. Please try again.",
       );
       setBusy(false);
     }
@@ -186,24 +147,6 @@ export function BidTicket({
               already on the tape at {slotLabel(held)}
             </p>
           )}
-        </div>
-
-        <div>
-          <label htmlFor="track-genre" className="slip label">
-            shelf
-          </label>
-          <select
-            id="track-genre"
-            value={genre}
-            onChange={(e) => setGenre(e.target.value as Exclude<Genre, "All">)}
-            className="field field-select"
-          >
-            {GENRES.filter((g) => g !== "All").map((g) => (
-              <option key={g} value={g}>
-                {g}
-              </option>
-            ))}
-          </select>
         </div>
 
         <div className="dashed-t pt-4">
@@ -265,28 +208,35 @@ export function BidTicket({
           </div>
         </div>
 
+        {/* What the money buys, stated before the button that takes it. */}
+        <PurchaseScopeNote />
+
         <button
           type="submit"
           className="btn btn-hammer btn-lg w-full"
-          disabled={busy || stuck}
+          disabled={busy || stuck || !durable}
         >
           {busy
             ? "Opening checkout…"
-            : `Pay ${formatUsd(bid, 0)} for ${slotLabel(rank)}`}
+            : `Take ${slotLabel(rank)} · ${formatUsd(bid, 0)}`}
         </button>
+
+        {!durable && (
+          <p className="notice text-sm">
+            Slots are not for sale on this instance — the tape has no durable
+            storage configured, so nothing bought would survive a restart.
+          </p>
+        )}
 
         {status && <p className="notice notice-press text-sm">{status}</p>}
 
         <p className="text-xs leading-relaxed chrome">
-          Checkout is handled by {PAYMENT_PROVIDER} on their own hosted page — we
-          never see your card details. A position costs a dollar more than
-          whoever holds it. Pay it and the song takes that slot; everything from
-          there down shifts one track later. Position always follows the price.
+          Secure checkout by {PAYMENT_PROVIDER} — we never see your card details.
+          Your song moves onto the tape once the payment is confirmed, at the
+          position you paid for; everything from there down shifts one track
+          later. Position always follows the price.
         </p>
       </form>
     </section>
   );
 }
-
-
-

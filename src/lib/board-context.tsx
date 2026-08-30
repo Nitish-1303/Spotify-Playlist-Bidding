@@ -11,182 +11,110 @@ import {
 } from "react";
 import { startOfDay } from "./format";
 import { chartOrder } from "./ranks";
-import { SEED_ACTIVITY, SEED_SPOTS } from "./seed";
 import type { Activity, BoardState, Spot, TimeFilter } from "./types";
+import { readVisitorId } from "./visitor-stats";
 
-const STORAGE_KEY = "playlistbid-board-v4";
+/**
+ * The tape as the browser sees it: read-only.
+ *
+ * It used to live in localStorage, which meant the page that took the money was
+ * also the page that decided the running order — and a visitor could edit it.
+ * Now it is served from /api/board and the only thing that changes it is a
+ * verified payment webhook. Nothing in here can write a slot.
+ */
 
-function sortSpots(spots: Spot[]) {
-  return chartOrder(spots);
-}
-
-function rankMap(spots: Spot[]): Record<string, number> {
-  const ranks: Record<string, number> = {};
-  sortSpots(spots).forEach((spot, i) => {
-    ranks[spot.id] = i + 1;
-  });
-  return ranks;
-}
-
-function seedState(): BoardState {
-  return {
-    spots: SEED_SPOTS,
-    activity: SEED_ACTIVITY,
-    prevRanks: rankMap(SEED_SPOTS),
-  };
-}
-
-function loadState(): BoardState {
-  if (typeof window === "undefined") return seedState();
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return seedState();
-    const parsed = JSON.parse(raw) as Partial<BoardState>;
-    if (!Array.isArray(parsed.spots) || parsed.spots.length === 0) {
-      return seedState();
-    }
-    return {
-      spots: parsed.spots,
-      activity: parsed.activity ?? [],
-      prevRanks: parsed.prevRanks ?? rankMap(parsed.spots),
-    };
-  } catch {
-    return seedState();
-  }
-}
+const EMPTY: BoardState = { spots: [], activity: [], prevRanks: {} };
 
 type BoardContextValue = {
   spots: Spot[];
   activity: Activity[];
   prevRanks: Record<string, number>;
-  /**
-   * False until the saved tape has been read back out of localStorage. Anything
-   * that writes on mount must wait for it, or its write is overwritten by the
-   * load that follows.
-   */
+  /** False until the first response from the server has landed. */
   hydrated: boolean;
-  placeBid: (input: Omit<Spot, "id" | "clicks" | "raisedAt">) => BidResult;
-  registerClick: (id: string) => void;
-  listForSale: (trackId: string, askingPrice: number) => void;
-};
-
-/** What a write returns, so the caller can see where the song actually landed. */
-export type BidResult = {
-  /** The row as it now sits on the tape. */
-  spot: Spot;
-  /** The whole tape after the write, already in track order. */
-  spots: Spot[];
+  /** False when the server has no durable store, so slots cannot be sold. */
+  durable: boolean;
+  /** Re-reads the tape. Called after a payment is confirmed. */
+  refresh: () => Promise<void>;
+  /** Counts a play. Cannot change prices or positions. */
+  registerPlay: (trackId: string) => void;
 };
 
 const BoardContext = createContext<BoardContextValue | null>(null);
 
+type BoardResponse = BoardState & { durable?: boolean };
+
 export function BoardProvider({ children }: { children: React.ReactNode }) {
-  const [state, setState] = useState<BoardState>(seedState);
+  const [state, setState] = useState<BoardState>(EMPTY);
   const [hydrated, setHydrated] = useState(false);
+  const [durable, setDurable] = useState(true);
+  const inFlight = useRef(false);
 
-  /**
-   * The tape as it stands right now. `setState` does not land until the next
-   * render, so anything that needs to read its own write back — the receipt
-   * page working out which track it got — reads this instead.
-   */
-  const stateRef = useRef(state);
-
-  const commit = useCallback((next: BoardState) => {
-    stateRef.current = next;
-    setState(next);
+  const refresh = useCallback(async () => {
+    if (inFlight.current) return;
+    inFlight.current = true;
+    try {
+      const res = await fetch("/api/board", { cache: "no-store" });
+      if (!res.ok) return;
+      const data = (await res.json()) as BoardResponse;
+      if (!Array.isArray(data.spots)) return;
+      setState({
+        spots: data.spots,
+        activity: Array.isArray(data.activity) ? data.activity : [],
+        prevRanks: data.prevRanks ?? {},
+      });
+      setDurable(data.durable !== false);
+    } catch {
+      // Offline or a blip: keep showing the tape we already have.
+    } finally {
+      inFlight.current = false;
+      setHydrated(true);
+    }
   }, []);
 
   useEffect(() => {
-    commit(loadState());
-    setHydrated(true);
-  }, [commit]);
+    void refresh();
+  }, [refresh]);
 
+  // Re-read when the tab comes back, so a buyer returning from checkout sees
+  // the tape as it now stands rather than as it was when they left.
   useEffect(() => {
-    if (!hydrated) return;
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
-  }, [state, hydrated]);
+    const onVisible = () => {
+      if (document.visibilityState === "visible") void refresh();
+    };
+    document.addEventListener("visibilitychange", onVisible);
+    return () => document.removeEventListener("visibilitychange", onVisible);
+  }, [refresh]);
 
-  const placeBid = useCallback(
-    (input: Omit<Spot, "id" | "clicks" | "raisedAt">): BidResult => {
-      const prev = stateRef.current;
-      const existing = prev.spots.find((s) => s.trackId === input.trackId);
-      const now = Date.now();
-      const spot: Spot = existing
-        ? {
-            ...existing,
-            ...input,
-            bid: Math.max(existing.bid, input.bid),
-            raisedAt: now,
-          }
-        : {
-            ...input,
-            id: crypto.randomUUID(),
-            clicks: 0,
-            raisedAt: now,
-          };
-
-      // Snapshot where everything stood *before* this bid so the board can
-      // show a genuine rank move afterwards.
-      const prevRanks = rankMap(prev.spots);
-      const spots = sortSpots([
-        spot,
-        ...prev.spots.filter((s) => s.trackId !== input.trackId),
-      ]);
-      const activity: Activity[] = [
-        {
-          id: crypto.randomUUID(),
-          trackId: spot.trackId,
-          title: spot.title,
-          artist: spot.artist,
-          bid: spot.bid,
-          at: now,
-        },
-        ...prev.activity,
-      ].slice(0, 60);
-
-      commit({ spots, activity, prevRanks });
-      return { spot, spots };
-    },
-    [commit],
-  );
-
-  const registerClick = useCallback(
-    (id: string) => {
-      const prev = stateRef.current;
-      commit({
+  const registerPlay = useCallback(
+    (trackId: string) => {
+      // Shown straight away, then confirmed by the server's own count on the
+      // next read. A play is a play count — it buys nothing.
+      setState((prev) => ({
         ...prev,
         spots: prev.spots.map((s) =>
-          s.id === id ? { ...s, clicks: s.clicks + 1 } : s,
+          s.trackId === trackId ? { ...s, clicks: s.clicks + 1 } : s,
         ),
-      });
+      }));
+      void fetch("/api/board/play", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ trackId, visitorId: readVisitorId() }),
+      }).catch(() => {});
     },
-    [commit],
-  );
-
-  const listForSale = useCallback(
-    (trackId: string, askingPrice: number) => {
-      const prev = stateRef.current;
-      commit({
-        ...prev,
-        spots: prev.spots.map((s) =>
-          s.trackId === trackId ? { ...s, askingPrice } : s,
-        ),
-      });
-    },
-    [commit],
+    [],
   );
 
   const value = useMemo(
     () => ({
-      spots: sortSpots(state.spots),
+      spots: chartOrder(state.spots),
       activity: state.activity,
       prevRanks: state.prevRanks,
       hydrated,
-      placeBid,
-      registerClick,
-      listForSale,
+      durable,
+      refresh,
+      registerPlay,
     }),
-    [state, hydrated, placeBid, registerClick, listForSale],
+    [state, hydrated, durable, refresh, registerPlay],
   );
 
   return <BoardContext.Provider value={value}>{children}</BoardContext.Provider>;
@@ -198,25 +126,19 @@ export function useBoard() {
   return ctx;
 }
 
-export function filterSpots(
-  spots: Spot[],
-  genre: string,
-  time: TimeFilter,
-  forSaleOnly = false,
-) {
+/** Narrows the rack to what was written on inside a window of time. */
+export function filterSpots(spots: Spot[], time: TimeFilter) {
   const startToday = startOfDay();
   const startWeek = Date.now() - 7 * 86400000;
 
   return spots.filter((s) => {
-    if (genre !== "All" && s.genre !== genre) return false;
-    if (forSaleOnly && !s.askingPrice) return false;
     if (time === "today" && s.raisedAt < startToday) return false;
     if (time === "week" && s.raisedAt < startWeek) return false;
     return true;
   });
 }
 
-/** Positive = the track climbed since the last confirmed bid on the board. */
+/** Positive = the track climbed since the last finalised payment. */
 export function rankDelta(
   prevRanks: Record<string, number>,
   id: string,

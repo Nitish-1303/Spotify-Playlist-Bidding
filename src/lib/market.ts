@@ -1,7 +1,5 @@
 import { startOfDay } from "./format";
-import { GENRES, type Activity, type Spot } from "./types";
-
-export type GenreShare = { genre: string; total: number; tracks: number };
+import type { Activity, Spot } from "./types";
 
 export type MarketStats = {
   /** Highest live bid on the board. */
@@ -19,7 +17,6 @@ export type MarketStats = {
   lastBidAt: number | null;
   /** Bid dollars per hour for the last 24 hours, oldest → newest. */
   hourlyFlow: number[];
-  genreShare: GenreShare[];
 };
 
 const HOUR = 3600_000;
@@ -35,21 +32,9 @@ export function deriveMarket(spots: Spot[], activity: Activity[]): MarketStats {
 
   let volume = 0;
   let clicks = 0;
-  const byGenre = new Map<string, GenreShare>();
-  for (const g of GENRES) {
-    if (g !== "All") byGenre.set(g, { genre: g, total: 0, tracks: 0 });
-  }
   for (const spot of spots) {
     volume += spot.bid;
     clicks += spot.clicks;
-    const entry = byGenre.get(spot.genre) ?? {
-      genre: spot.genre,
-      total: 0,
-      tracks: 0,
-    };
-    entry.total += spot.bid;
-    entry.tracks += 1;
-    byGenre.set(spot.genre, entry);
   }
 
   let volume24h = 0;
@@ -77,6 +62,5 @@ export function deriveMarket(spots: Spot[], activity: Activity[]): MarketStats {
     clicks,
     lastBidAt: activity[0]?.at ?? null,
     hourlyFlow,
-    genreShare: [...byGenre.values()].sort((a, b) => b.total - a.total),
   };
 }

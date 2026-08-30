@@ -13,7 +13,7 @@ export const PAYMENT_PROVIDER = "Dodo Payments";
 export const PAYMENT_PROVIDER_URL = "https://dodopayments.com";
 
 export const SITE_DESCRIPTION =
-  "PlaylistBid is a song bidding leaderboard. Paste a public track link, bid for rank, and put your favorite song at the top of this independent music billboard. Not affiliated with Spotify.";
+  "PlaylistBid is an independent fan project: one shared mixtape where every track position has a price. Paste a public Spotify track link and buy the slot you want. Not affiliated with Spotify AB.";
 
 export const SITE_KEYWORDS = [
   "PlaylistBid",

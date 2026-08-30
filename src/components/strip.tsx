@@ -5,10 +5,141 @@ import { TimeAgo } from "@/components/time-ago";
 import { formatInt, formatUsd } from "@/lib/format";
 import { useNowPlaying } from "@/lib/now-playing";
 import { sideOf, trackOnSide } from "@/lib/ranks";
-import { spotifyEmbedUrl } from "@/lib/spotify";
 import type { Spot } from "@/lib/types";
 
-type LotStripProps = {
+/** The one glyph this interface needs: play. */
+export function PlayGlyph({ className }: { className?: string }) {
+  return (
+    <svg
+      className={className}
+      viewBox="0 0 24 24"
+      fill="currentColor"
+      aria-hidden
+      focusable="false"
+    >
+      <path d="M8 5.14v13.72a1 1 0 0 0 1.52.85l11.14-6.86a1 1 0 0 0 0-1.7L9.52 4.29A1 1 0 0 0 8 5.14Z" />
+    </svg>
+  );
+}
+
+function moveNote(move: number | null) {
+  if (move === null || move === 0) return null;
+  return move > 0 ? `up ${move}` : `down ${Math.abs(move)}`;
+}
+
+type TapeHeaderProps = {
+  spot: Spot;
+  /** What track 2 is holding, for the "clear of" line. */
+  runnerUp: number;
+  tracks: number;
+  plays: number;
+  onTake: (rank: number) => void;
+  onOpen: (spot: Spot) => void;
+};
+
+/**
+ * How the tape introduces itself: the opening song's artwork at cover size,
+ * its title at display size, the counts underneath, and a green button that
+ * starts it playing in the deck.
+ *
+ * Playback is Spotify's own embedded player, in the deck at the bottom of the
+ * screen. Nothing here is a Spotify product.
+ */
+export function TapeHeader({
+  spot,
+  runnerUp,
+  tracks,
+  plays,
+  onTake,
+  onOpen,
+}: TapeHeaderProps) {
+  const { play } = useNowPlaying();
+  const next = spot.bid + 1;
+
+  function start() {
+    onOpen(spot);
+    play({ trackId: spot.trackId, title: spot.title, artist: spot.artist });
+  }
+
+  return (
+    <section className="settle" aria-labelledby="block-title">
+      <div className="plist">
+        <CoverArt
+          as="button"
+          trackId={spot.trackId}
+          src={spot.thumbnailUrl}
+          alt=""
+          className="plist-art"
+          onClick={start}
+          title={`Play ${spot.title}`}
+        />
+        <div className="min-w-0">
+          <p className="plist-kind">
+            side a · track 1 · opens the tape
+          </p>
+          <h2 id="block-title" className="plist-name break-words">
+            {spot.title}
+          </h2>
+          <p className="plist-meta">
+            <b>{spot.artist}</b>
+            <span aria-hidden>·</span>
+            <span>
+              holding <b className="hammer">{formatUsd(spot.bid, 0)}</b>
+            </span>
+            <span aria-hidden>·</span>
+            <span>{formatInt(tracks)} songs</span>
+            <span aria-hidden>·</span>
+            <span>{formatInt(plays)} plays</span>
+          </p>
+          {/* Kept off the counts line so a wrap never leaves a dangling "·". */}
+          <p className="mt-1 text-xs chrome">
+            last moved <TimeAgo ts={spot.raisedAt} />
+          </p>
+        </div>
+      </div>
+
+      <div className="plist-bar">
+        <button
+          type="button"
+          className="fab"
+          onClick={start}
+          title={`Play ${spot.title}`}
+          aria-label={`Play ${spot.title}`}
+        >
+          <PlayGlyph />
+        </button>
+        <button
+          type="button"
+          className="btn btn-hammer btn-lg"
+          onClick={() => onTake(1)}
+        >
+          Take side A · track 1 · {formatUsd(next, 0)}
+        </button>
+        <p className="text-xs chrome">
+          {runnerUp > 0
+            ? `${formatUsd(spot.bid - runnerUp, 0)} clear of track 2`
+            : "nothing else on the tape yet"}
+        </p>
+      </div>
+    </section>
+  );
+}
+
+/** The column header above the list. Same grid as a row, so it lines up. */
+export function TrackHead() {
+  return (
+    <div className="trow thead" aria-hidden>
+      <span className="text-center">#</span>
+      <span>title</span>
+      <span className="hidden text-right sm:block">plays</span>
+      <span className="hidden text-right lg:block">last moved</span>
+      <span className="text-right">holding</span>
+      <span className="hidden lg:block" />
+    </div>
+  );
+}
+
+type TrackRowProps = {
   spot: Spot;
   rank: number;
   /** Positive when the song moved up a track since the last confirmed payment. */
@@ -17,161 +148,78 @@ type LotStripProps = {
   onOpen: (spot: Spot) => void;
 };
 
-function moveNote(move: number | null) {
-  if (move === null || move === 0) return null;
-  return move > 0 ? `up ${move}` : `down ${Math.abs(move)}`;
-}
-
-/** One track written onto the cassette label. */
-export function LotStrip({ spot, rank, move, onTake, onOpen }: LotStripProps) {
+/** One song on the tape. The number turns into a play button on hover. */
+export function TrackRow({ spot, rank, move, onTake, onOpen }: TrackRowProps) {
   const { play } = useNowPlaying();
   const note = moveNote(move);
 
+  function start() {
+    onOpen(spot);
+    play({ trackId: spot.trackId, title: spot.title, artist: spot.artist });
+  }
+
   return (
-    <li className={`strip ${rank === 1 ? "strip-lead" : ""}`}>
-      <div className="strip-tab">
-        <span className="hole" aria-hidden />
-        <span className="strip-lot">
+    <li className={`trow ${rank === 1 ? "trow-lead" : ""}`}>
+      <button
+        type="button"
+        className="trow-no"
+        onClick={start}
+        aria-label={`Play ${spot.title}`}
+        title={`Play ${spot.title}`}
+      >
+        <span>
           {sideOf(rank)}
           {trackOnSide(rank)}
         </span>
-      </div>
+        <PlayGlyph />
+      </button>
 
-      <div className="strip-body">
+      <div className="trow-main">
         <CoverArt
           as="button"
           trackId={spot.trackId}
           src={spot.thumbnailUrl}
           alt=""
           className="art"
-          onClick={() => {
-            onOpen(spot);
-            play({
-              trackId: spot.trackId,
-              title: spot.title,
-              artist: spot.artist,
-            });
-          }}
-          title={`Play ${spot.title} in the deck`}
+          onClick={start}
+          title={`Play ${spot.title}`}
         />
-
-        <div className="min-w-0 flex-1">
+        <div className="min-w-0">
           <a
             href={spot.trackUrl}
             target="_blank"
             rel="noreferrer"
             onClick={() => onOpen(spot)}
-            className="strip-title block hover:text-[var(--press)]"
+            title={`Open the Spotify track page for ${spot.title}`}
+            className="trow-title"
           >
             {spot.title}
           </a>
-          <p className="strip-artist">
-            {spot.artist} · {spot.genre}
-          </p>
+          <p className="trow-sub">{spot.artist}</p>
         </div>
+      </div>
 
-        <div className="hidden text-right sm:block">
-          <p className="tnum text-xs">{formatInt(spot.clicks)}</p>
-          <p className="slip slip-quiet text-[0.625rem]">plays</p>
-        </div>
+      <p className="tnum hidden text-right text-sm chrome sm:block">
+        {formatInt(spot.clicks)}
+      </p>
 
-        <div className="hidden text-right md:block">
-          <p className="tnum text-xs chrome">
-            <TimeAgo ts={spot.raisedAt} />
-          </p>
-          <p className="slip slip-quiet text-[0.625rem]">{note ?? "held"}</p>
-        </div>
+      <p className="hidden text-right text-xs chrome lg:block">
+        <TimeAgo ts={spot.raisedAt} />
+        {note ? <span className="block hammer">{note}</span> : null}
+      </p>
 
-        <div className="text-right">
-          <p className="strip-price">{formatUsd(spot.bid, 0)}</p>
-          <p className="slip slip-quiet text-[0.625rem]">holding</p>
-        </div>
+      <p className="trow-price">{formatUsd(spot.bid, 0)}</p>
 
+      <span className="hidden justify-self-end lg:block">
         <button
           type="button"
-          className="btn btn-press hidden lg:inline-flex"
+          className="btn btn-sm"
           onClick={() => onTake(rank)}
           title={`Buy side ${sideOf(rank)} · track ${trackOnSide(rank)}`}
         >
-          Take this slot · {formatUsd(spot.bid + 1, 0)}
+          Take · {formatUsd(spot.bid + 1, 0)}
         </button>
-      </div>
+      </span>
     </li>
-  );
-}
-
-type BlockLotProps = {
-  spot: Spot;
-  runnerUp: number;
-  onTake: (rank: number) => void;
-  onOpen: (spot: Spot) => void;
-};
-
-/** Side A, track 1: the opening song, printed larger with the player inline. */
-export function BlockLot({ spot, runnerUp, onTake, onOpen }: BlockLotProps) {
-  const next = spot.bid + 1;
-
-  return (
-    <section className="strip strip-lead settle" aria-labelledby="block-title">
-      <div className="strip-tab">
-        <span className="hole" aria-hidden />
-        <span className="strip-lot">A1</span>
-      </div>
-
-      <div className="lot-block min-w-0 flex-1">
-        <CoverArt
-          as="button"
-          trackId={spot.trackId}
-          src={spot.thumbnailUrl}
-          alt=""
-          className="art art-lg max-w-[8.5rem]"
-          onClick={() => onOpen(spot)}
-          title={`Open ${spot.title} on Spotify`}
-        />
-
-        <div className="min-w-0">
-          <p className="slip" style={{ color: "var(--hammer)" }}>
-            side a · track 1 · holding {formatUsd(spot.bid, 0)}
-          </p>
-          <h2 id="block-title" className="marquee subhead mt-2 break-words">
-            {spot.title}
-          </h2>
-          <p className="strip-artist mt-1.5 text-[0.75rem] whitespace-normal">
-            {spot.artist} · {spot.genre} · {formatInt(spot.clicks)} plays · last
-            moved <TimeAgo ts={spot.raisedAt} />
-          </p>
-          <div className="mt-3.5 max-w-md">
-            <iframe
-              src={spotifyEmbedUrl(spot.trackId)}
-              title={`Spotify player for ${spot.title}`}
-              width="100%"
-              height="80"
-              loading="lazy"
-              allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture"
-              style={{ borderRadius: 4, border: "1px solid var(--edge)" }}
-            />
-          </div>
-        </div>
-
-        <div className="shrink-0 md:text-right">
-          <p className="slip slip-quiet">to open the tape</p>
-          <p className="marquee mt-1 text-[3rem] leading-none hammer">
-            {formatUsd(next, 0)}
-          </p>
-          <p className="tnum mt-1 text-xs chrome">
-            {runnerUp > 0
-              ? `${formatUsd(spot.bid - runnerUp, 0)} clear of track 2`
-              : "nothing else on the tape yet"}
-          </p>
-          <button
-            type="button"
-            className="btn btn-hammer btn-lg mt-3.5 w-full md:w-auto"
-            onClick={() => onTake(1)}
-          >
-            Take side A · track 1
-          </button>
-        </div>
-      </div>
-    </section>
   );
 }

@@ -5,11 +5,16 @@ export const alt = "PlaylistBid — pick the track, pay for the slot";
 export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
 
-const PAPER = "#efe3c8";
-const INK = "#2a2118";
-const HAMMER = "#c2402b";
-const PRESS = "#2c4a7c";
-const CHROME = "#8a7c65";
+/* The same tokens the site runs on. The green is ours, not Spotify's, and no
+   Spotify logo or wordmark appears on the card. */
+const PAPER = "#0a0a0b";
+const STRIP = "#17171a";
+const EDGE = "#2b2b31";
+const INK = "#f5f5f6";
+const HAMMER = "#22c55e";
+const ON_HAMMER = "#05140a";
+const PRESS = "#7cb2ff";
+const CHROME = "#a7a7ae";
 
 export default function OpenGraphImage() {
   return new ImageResponse(
@@ -22,7 +27,7 @@ export default function OpenGraphImage() {
           flexDirection: "column",
           justifyContent: "center",
           padding: 72,
-          background: PAPER,
+          background: `linear-gradient(150deg, #14251b 0%, ${PAPER} 46%, ${PAPER} 100%)`,
           color: INK,
           fontFamily: "sans-serif",
         }}
@@ -39,12 +44,12 @@ export default function OpenGraphImage() {
             style={{
               width: 58,
               height: 58,
-              borderRadius: 5,
+              borderRadius: 999,
               background: HAMMER,
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
-              color: "#fff",
+              color: ON_HAMMER,
               fontSize: 28,
               fontWeight: 800,
             }}
@@ -79,15 +84,15 @@ export default function OpenGraphImage() {
           Pick the track. Pay for the slot.
         </div>
 
-        {/* One cassette label, the way the site writes them. */}
+        {/* One row of the tape, the way the site prints them. */}
         <div
           style={{
             marginTop: 44,
             display: "flex",
             width: 1000,
-            background: "#fff",
-            border: `2px solid ${HAMMER}`,
-            borderRadius: 6,
+            background: STRIP,
+            border: `1px solid ${EDGE}`,
+            borderRadius: 8,
             overflow: "hidden",
           }}
         >
@@ -95,7 +100,7 @@ export default function OpenGraphImage() {
             style={{
               width: 84,
               background: HAMMER,
-              color: "#fff",
+              color: ON_HAMMER,
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
@@ -132,6 +137,21 @@ export default function OpenGraphImage() {
             </div>
             <div style={{ fontSize: 52, fontWeight: 800, color: HAMMER }}>$1+</div>
           </div>
+        </div>
+
+        {/* The share card is often the whole first impression, so it carries
+            the disclosure too. */}
+        <div
+          style={{
+            marginTop: 26,
+            fontSize: 20,
+            letterSpacing: 2,
+            color: PRESS,
+            fontWeight: 700,
+            textTransform: "uppercase",
+          }}
+        >
+          Independent fan project · not affiliated with Spotify AB
         </div>
       </div>
     ),

@@ -139,16 +139,14 @@ export function StatsView() {
 
         <div className="card mt-3">
           <div className="card-hd">
-            <h3 className="slip">money by shelf</h3>
+            <h3 className="slip">what each song is holding</h3>
             <span className="slip slip-quiet">
               track 1 is {formatUsd(market.spread, 0)} clear
             </span>
           </div>
           <div className="card-bd">
             <LedgerList
-              rows={market.genreShare
-                .filter((g) => g.total > 0)
-                .map((g) => ({ key: g.genre, views: g.total }))}
+              rows={spots.map((s) => ({ key: s.title, views: s.bid }))}
               empty="Nothing on the tape yet."
               format={(key) => key}
               formatValue={(n) => formatUsd(n, 0)}
@@ -157,9 +155,9 @@ export function StatsView() {
         </div>
 
         <p className="mt-3 text-xs leading-relaxed chrome">
-          Tape figures come from the confirmed payments saved in this browser.
-          They are your own copy of the tape — visitor counts above are measured
-          server-side for everyone.
+          Tape figures come from confirmed payments, read from the server — the
+          same tape everyone else sees. Visitor counts above are measured
+          server-side too.
         </p>
       </section>
     </div>

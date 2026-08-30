@@ -2,15 +2,16 @@
 
 import { useCallback, useMemo, useRef, useState } from "react";
 import { BidTicket } from "@/components/bid-ticket";
+import { SpotifyContentNote } from "@/components/independence";
 import { Figure } from "@/components/ledger";
-import { BlockLot, LotStrip } from "@/components/strip";
+import { TapeHeader, TrackHead, TrackRow } from "@/components/strip";
 import { TimeAgo } from "@/components/time-ago";
 import { VisitorStatsPanel } from "@/components/visitor-stats-panel";
 import { filterSpots, rankDelta, useBoard } from "@/lib/board-context";
 import { formatInt, formatUsd } from "@/lib/format";
 import { deriveMarket } from "@/lib/market";
 import { useVisitorStats } from "@/lib/visitor-stats";
-import { GENRES, type GenreFilter, type Spot, type TimeFilter } from "@/lib/types";
+import type { Spot, TimeFilter } from "@/lib/types";
 
 const WHEN: { id: TimeFilter; label: string }[] = [
   { id: "all", label: "All time" },
@@ -19,10 +20,9 @@ const WHEN: { id: TimeFilter; label: string }[] = [
 ];
 
 export function HomeBoard() {
-  const { spots, activity, prevRanks, registerClick } = useBoard();
+  const { spots, activity, prevRanks, hydrated, registerPlay } = useBoard();
   const { stats } = useVisitorStats();
   const [targetRank, setTargetRank] = useState(1);
-  const [genre, setGenre] = useState<GenreFilter>("All");
   const [when, setWhen] = useState<TimeFilter>("all");
   const formRef = useRef<HTMLFormElement>(null);
 
@@ -34,18 +34,15 @@ export function HomeBoard() {
     return map;
   }, [spots]);
 
-  const shelves = useMemo(() => {
-    const present = new Set(spots.map((s) => s.genre));
-    return GENRES.filter((g) => g === "All" || present.has(g));
-  }, [spots]);
-
   const lead = spots[0];
   const runnerUp = spots[1]?.bid ?? 0;
-
-  const rack = useMemo(
-    () => filterSpots(spots, genre, when).filter((s) => s.id !== lead?.id),
-    [spots, genre, when, lead?.id],
+  const plays = useMemo(
+    () => spots.reduce((n, s) => n + s.clicks, 0),
+    [spots],
   );
+
+  /** The whole tape, in order, filtered only by the time window. */
+  const rack = useMemo(() => filterSpots(spots, when), [spots, when]);
 
   /** Tapping a slot on the tape carries that position down to the paddle. */
   const take = useCallback((rank: number) => {
@@ -60,9 +57,9 @@ export function HomeBoard() {
 
   const open = useCallback(
     (spot: Spot) => {
-      registerClick(spot.id);
+      registerPlay(spot.trackId);
     },
-    [registerClick],
+    [registerPlay],
   );
 
   return (
@@ -72,13 +69,23 @@ export function HomeBoard() {
           Side A, track 1
         </h2>
         {lead ? (
-          <BlockLot spot={lead} runnerUp={runnerUp} onTake={take} onOpen={open} />
+          <TapeHeader
+            spot={lead}
+            runnerUp={runnerUp}
+            tracks={market.tracks}
+            plays={plays}
+            onTake={take}
+            onOpen={open}
+          />
         ) : (
           <div className="card card-bd">
-            <p className="slip">the tape is blank</p>
+            <p className="slip">
+              {hydrated ? "the tape is blank" : "reading the tape…"}
+            </p>
             <p className="mt-2 text-sm">
-              Nothing is written on it yet. Paste a song link below and take side
-              A · track 1 for $1.
+              {hydrated
+                ? "Nothing is written on it yet. Paste a song link below and take side A · track 1 for $1."
+                : "Pulling the running order off the server."}
             </p>
           </div>
         )}
@@ -114,15 +121,22 @@ export function HomeBoard() {
             note={`${formatInt(stats?.viewsToday ?? 0)} views today`}
           />
         </div>
+
+        {/*
+          Sits between the first embed and the rest of the tape: the covers,
+          the links and the player above and below it are all Spotify's, and
+          this says so where a visitor is actually looking at them.
+        */}
+        <SpotifyContentNote className="mt-3" />
       </section>
 
 
       <section className="rack band" id="rack" aria-labelledby="rack-heading">
         <div className="mb-4 flex flex-wrap items-end justify-between gap-4">
           <div>
-            <p className="slip">track 2 to the end of side b</p>
+            <p className="slip">side a track 1 to the end of side b</p>
             <h2 id="rack-heading" className="marquee mt-1.5 text-2xl">
-              The rest of the tape
+              The tape
             </h2>
           </div>
           <div className="flex flex-wrap items-center gap-1.5">
@@ -139,42 +153,31 @@ export function HomeBoard() {
           </div>
         </div>
 
-        <div className="scroll-x mb-4 flex gap-1.5 pb-1">
-          {shelves.map((g) => (
-            <button
-              key={g}
-              type="button"
-              onClick={() => setGenre(g)}
-              className={`punch ${genre === g ? "punch-on" : ""}`}
-            >
-              {g}
-            </button>
-          ))}
-        </div>
-
         {rack.length > 0 ? (
-          <ul className="space-y-2">
-            {rack.map((spot) => {
-              const rank = ranks.get(spot.id) ?? 0;
-              return (
-                <LotStrip
-                  key={spot.id}
-                  spot={spot}
-                  rank={rank}
-                  move={rankDelta(prevRanks, spot.id, rank)}
-                  onTake={take}
-                  onOpen={open}
-                />
-              );
-            })}
-          </ul>
+          <>
+            <TrackHead />
+            <ul className="space-y-px">
+              {rack.map((spot) => {
+                const rank = ranks.get(spot.id) ?? 0;
+                return (
+                  <TrackRow
+                    key={spot.id}
+                    spot={spot}
+                    rank={rank}
+                    move={rankDelta(prevRanks, spot.id, rank)}
+                    onTake={take}
+                    onOpen={open}
+                  />
+                );
+              })}
+            </ul>
+          </>
         ) : (
           <div className="card card-bd">
-            <p className="slip">nothing on this shelf</p>
+            <p className="slip">nothing in that window</p>
             <p className="mt-2 text-sm">
-              No songs match{" "}
-              {genre === "All" ? "that window" : `the ${genre} shelf`}. Clear the
-              filters, or write one onto the tape yourself.
+              No songs were written on in that stretch of time. Widen it, or put
+              one on the tape yourself.
             </p>
           </div>
         )}
@@ -192,7 +195,7 @@ export function HomeBoard() {
           <BidTicket
             targetRank={targetRank}
             setTargetRank={setTargetRank}
-            onConfirmed={() => setTargetRank(1)}
+            onStarted={() => setTargetRank(1)}
             formRef={formRef}
           />
 

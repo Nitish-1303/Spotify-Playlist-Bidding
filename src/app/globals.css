@@ -1,25 +1,36 @@
 @import "tailwindcss";
 
 /* ═══════════════════════════════════════════════════════════════
-   PlaylistBid — "the mixtape"
-   A cassette someone made for you. Kraft sleeve, cream tape
-   labels ruled in ballpoint, titles written on in marker, side A
-   and side B, two reels that turn while a song plays.
+   PlaylistBid — "the player"
+   One dark room, one shared tape. A playlist header at the top,
+   numbered rows below it, a green button that starts the music,
+   and a now-playing bar docked along the bottom.
+
+   PlaylistBid is an independent fan project. It is not affiliated
+   with Spotify AB, and nothing here uses Spotify's logo, wordmark
+   or brand colour — the accent below is our own green.
    ═══════════════════════════════════════════════════════════════ */
 
 :root {
-  --paper: #efe3c8;   /* kraft sleeve */
-  --strip: #fbf6ea;   /* cassette label stock */
-  --ink: #2a2118;     /* warm brown-black, like a felt tip gone dry */
-  --hammer: #c2402b;  /* red marker — prices, side A, the top slot */
-  --press: #2c4a7c;   /* ballpoint blue — rules, labels, links */
-  --chrome: #8a7c65;  /* pencil grey — quiet metadata */
-  --edge: #d9c8a4;    /* tan hairlines */
-  --shell: #26241f;   /* cassette shell, for the deck */
+  --paper: #0a0a0b;      /* the room */
+  --sleeve: #121214;     /* section wash, one step up from the room */
+  --strip: #17171a;      /* a row or a card */
+  --strip-up: #212127;   /* the same, hovered */
+  --ink: #f5f5f6;        /* text */
+  --chrome: #a7a7ae;     /* quiet metadata — 8.2:1 on the room */
+  --hammer: #22c55e;     /* our green — prices, the play button, side A */
+  --hammer-dk: #16a34a;  /* the same, pressed */
+  --on-hammer: #05140a;  /* text sitting on the green */
+  --press: #7cb2ff;      /* blue — labels, links, the disclosure */
+  --edge: #2b2b31;       /* hairlines */
+  --shell: #0e0e10;      /* the bottom bar */
 
-  --hammer-wash: rgba(194, 64, 43, 0.09);
-  --press-wash: rgba(44, 74, 124, 0.08);
-  --rack: 1100px;
+  --hammer-wash: rgba(34, 197, 94, 0.14);
+  --press-wash: rgba(124, 178, 255, 0.12);
+  --rack: 1180px;
+
+  /* One family does everything; headings simply run heavier. */
+  --font-hand: var(--font-body);
 }
 
 * {
@@ -38,25 +49,23 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
-/* Kraft grain: fibres in the sleeve card, very faint. */
+/* The room is lit from the top: a wash of the accent behind the first
+   screenful, gone by the time the tape starts. */
 body::before {
   content: "";
   position: fixed;
-  inset: 0;
+  inset: 0 0 auto;
+  height: 32rem;
   z-index: 0;
   pointer-events: none;
-  opacity: 0.5;
-  background-image:
-    repeating-linear-gradient(
-      92deg,
-      rgba(122, 96, 54, 0.05) 0 1px,
-      transparent 1px 4px
+  background:
+    radial-gradient(
+      115% 78% at 12% -14%,
+      rgba(34, 197, 94, 0.15) 0%,
+      rgba(34, 197, 94, 0.05) 42%,
+      transparent 72%
     ),
-    repeating-linear-gradient(
-      3deg,
-      rgba(122, 96, 54, 0.04) 0 1px,
-      transparent 1px 7px
-    );
+    linear-gradient(180deg, rgba(255, 255, 255, 0.045), transparent 68%);
 }
 
 body > * {
@@ -79,11 +88,11 @@ textarea {
 
 ::selection {
   background: var(--hammer);
-  color: #fff;
+  color: var(--on-hammer);
 }
 
 :focus-visible {
-  outline: 2px solid var(--press);
+  outline: 2px solid var(--ink);
   outline-offset: 2px;
 }
 
@@ -93,7 +102,7 @@ textarea {
   width: 100%;
   max-width: var(--rack);
   margin: 0 auto;
-  padding-inline: 1.125rem;
+  padding-inline: 1rem;
 }
 
 @media (min-width: 768px) {
@@ -103,7 +112,7 @@ textarea {
 }
 
 .band {
-  padding-block: 3.25rem;
+  padding-block: 3rem;
 }
 
 .hair {
@@ -112,33 +121,38 @@ textarea {
   margin: 0;
 }
 
+.dashed-t {
+  border-top: 1px solid var(--edge);
+}
+
 /* ── type ────────────────────────────────────────────────────── */
 
-/* Typed onto the label with a typewriter: side/track lines, counts. */
+/* The small tracked label above a heading, on a row, under a figure. */
 .slip {
-  font-family: var(--font-slip), ui-monospace, monospace;
   font-size: 0.6875rem;
   font-weight: 700;
-  letter-spacing: 0.15em;
+  letter-spacing: 0.13em;
   text-transform: uppercase;
   color: var(--press);
 }
 
 .slip-quiet {
   color: var(--chrome);
+  font-weight: 600;
+  letter-spacing: 0.1em;
 }
 
-/* Written on by hand in marker — titles, prices, headlines. Nowhere else. */
+/* Headings and prices: heavy, tight, negative-tracked. */
 .marquee {
   font-family: var(--font-hand), ui-sans-serif, sans-serif;
-  font-weight: 400;
-  letter-spacing: 0.005em;
-  line-height: 1.05;
+  font-weight: 800;
+  letter-spacing: -0.022em;
+  line-height: 1.06;
 }
 
 .tnum {
-  font-family: var(--font-slip), ui-monospace, monospace;
   font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum" 1;
 }
 
 .hammer {
@@ -154,371 +168,459 @@ textarea {
 }
 
 .headline {
-  font-size: clamp(2rem, 5.4vw, 3.5rem);
-  line-height: 1.08;
+  font-size: clamp(2.25rem, 6vw, 4.25rem);
+  line-height: 1.02;
+  letter-spacing: -0.035em;
 }
 
 .subhead {
-  font-size: clamp(1.375rem, 3vw, 1.875rem);
+  font-size: clamp(1.5rem, 3.4vw, 2.125rem);
+  letter-spacing: -0.028em;
 }
 
-/* Underlined the way you'd underline a favourite twice. */
+/* A link that should read as a link without being blue-underlined prose. */
 .tie {
-  border-bottom: 2px solid var(--hammer);
+  color: var(--press);
+  border-bottom: 1px solid rgba(124, 178, 255, 0.45);
 }
 
 .tie:hover {
-  color: var(--hammer);
+  color: var(--ink);
+  border-bottom-color: var(--ink);
 }
 
-/* ── the tape label (signature element) ──────────────────────── */
+/* ── the tape header (signature element) ─────────────────────── */
 
-/* A cassette inlay card: cream stock, ruled twice in ballpoint. */
-.strip {
+/* The way a playlist introduces itself: one big cover, the kind of thing
+   it is, its name at display size, then a line of counts. */
+.plist {
+  display: grid;
+  gap: 1.25rem;
+  grid-template-columns: minmax(0, 1fr);
+  align-items: end;
+  padding: 1.25rem 0 1.5rem;
+}
+
+@media (min-width: 720px) {
+  .plist {
+    grid-template-columns: 13.5rem minmax(0, 1fr);
+    gap: 2rem;
+    padding-block: 2rem 1.75rem;
+  }
+}
+
+.plist-art {
   position: relative;
-  display: flex;
-  align-items: stretch;
+  width: 9.5rem;
+  aspect-ratio: 1;
+  display: block;
+  padding: 0;
+  overflow: hidden;
+  border: 0;
+  border-radius: 6px;
   background: var(--strip);
-  border: 1px solid var(--press);
-  border-radius: 2px;
-  box-shadow:
-    inset 0 0 0 1px var(--strip),
-    inset 0 0 0 2px rgba(44, 74, 124, 0.35),
-    0 1px 0 rgba(42, 33, 24, 0.06);
-  transition: transform 0.16s ease, box-shadow 0.16s ease;
+  box-shadow: 0 12px 40px -12px rgba(0, 0, 0, 0.75);
 }
 
-.strip:hover {
-  transform: translateY(-2px) rotate(-0.25deg);
-  box-shadow:
-    inset 0 0 0 1px var(--strip),
-    inset 0 0 0 2px var(--press),
-    0 7px 18px -8px rgba(42, 33, 24, 0.3);
+@media (min-width: 720px) {
+  .plist-art {
+    width: 100%;
+  }
 }
 
-/* Left edge of the inlay: the typed track number. */
-.strip-tab {
-  position: relative;
-  flex: 0 0 3.25rem;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 0.3rem;
-  padding-block: 0.7rem;
-  background: var(--press-wash);
-  border-right: 1px solid rgba(44, 74, 124, 0.35);
-}
-
-/* The sprocket window punched in the inlay fold. */
-.hole {
-  width: 10px;
-  height: 7px;
-  border-radius: 1px;
-  background: var(--paper);
-  box-shadow: inset 0 1px 1.5px rgba(42, 33, 24, 0.45);
-}
-
-.strip-lot {
-  font-family: var(--font-slip), ui-monospace, monospace;
-  font-size: 0.9375rem;
+.plist-kind {
+  font-size: 0.6875rem;
   font-weight: 700;
-  line-height: 1;
-  letter-spacing: 0.02em;
-  color: var(--press);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--chrome);
 }
 
-.strip-body {
-  flex: 1 1 auto;
-  min-width: 0;
+.plist-name {
+  margin: 0.5rem 0 0;
+  font-family: var(--font-hand), ui-sans-serif, sans-serif;
+  font-weight: 800;
+  font-size: clamp(2.25rem, 7vw, 4.5rem);
+  line-height: 1;
+  letter-spacing: -0.04em;
+}
+
+.plist-meta {
   display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem 0.55rem;
+  margin: 0.9rem 0 0;
+  font-size: 0.875rem;
+  color: var(--chrome);
+}
+
+.plist-meta b {
+  color: var(--ink);
+  font-weight: 600;
+}
+
+/* The row of controls under the name: play, then everything else. */
+.plist-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.9rem;
+  padding-block: 0.5rem 1.25rem;
+}
+
+/* The green circle. The one thing on the page that starts the music. */
+.fab {
+  display: inline-grid;
+  place-items: center;
+  width: 3.5rem;
+  height: 3.5rem;
+  flex-shrink: 0;
+  border: 0;
+  border-radius: 999px;
+  background: var(--hammer);
+  color: var(--on-hammer);
+  cursor: pointer;
+  transition: transform 0.14s ease, background 0.14s ease;
+}
+
+.fab:hover {
+  background: #29d96b;
+  transform: scale(1.05);
+}
+
+.fab:active {
+  transform: scale(0.97);
+}
+
+.fab svg {
+  display: block;
+  width: 1.4rem;
+  height: 1.4rem;
+  margin-left: 2px;
+}
+
+/* ── the track list ──────────────────────────────────────────── */
+
+/* Column ruler, shared by the head and every row, so the numbers line up.
+   Narrow screens drop the middle two columns rather than squeeze them. */
+.trow {
+  display: grid;
+  grid-template-columns: 1.75rem minmax(0, 1fr) 5.5rem;
   align-items: center;
   gap: 0.85rem;
-  padding: 0.7rem 0.9rem;
+  padding: 0.5rem 0.85rem;
+  border-radius: 5px;
 }
 
-/* Track 1 on side A gets the red marker treatment. */
-.strip-lead {
-  border-color: var(--hammer);
-  box-shadow:
-    inset 0 0 0 1px var(--strip),
-    inset 0 0 0 2px rgba(194, 64, 43, 0.4),
-    0 1px 0 rgba(42, 33, 24, 0.06);
+@media (min-width: 640px) {
+  .trow {
+    grid-template-columns: 1.75rem minmax(0, 1fr) 4.5rem 5.5rem;
+  }
 }
 
-.strip-lead:hover {
-  box-shadow:
-    inset 0 0 0 1px var(--strip),
-    inset 0 0 0 2px var(--hammer),
-    0 7px 18px -8px rgba(42, 33, 24, 0.3);
+@media (min-width: 1024px) {
+  .trow {
+    grid-template-columns: 1.75rem minmax(0, 1fr) 4.5rem 6.5rem 5.5rem 9.5rem;
+    padding-inline: 1rem;
+  }
 }
 
-.strip-lead .strip-tab {
-  background: var(--hammer-wash);
-  border-right-color: rgba(194, 64, 43, 0.4);
+/* The column header: one hairline, letter-spaced labels, nothing else. */
+.thead {
+  border-bottom: 1px solid var(--edge);
+  padding-bottom: 0.5rem;
+  margin-bottom: 0.35rem;
+  font-size: 0.625rem;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--chrome);
 }
 
-.strip-lead .strip-lot {
-  color: var(--hammer);
+li.trow {
+  list-style: none;
+  transition: background 0.13s ease;
 }
 
-/* Titles are written on the label, not printed. */
-.strip-title {
-  font-family: var(--font-hand), ui-sans-serif, sans-serif;
-  font-size: 1.0625rem;
-  line-height: 1.15;
-  letter-spacing: 0.01em;
+li.trow:hover {
+  background: var(--strip-up);
+}
+
+/* The number, swapped for a play triangle on hover. */
+.trow-no {
+  position: relative;
+  display: grid;
+  place-items: center;
+  font-variant-numeric: tabular-nums;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--chrome);
+}
+
+li.trow:hover .trow-no span {
+  visibility: hidden;
+}
+
+.trow-no svg {
+  position: absolute;
+  width: 0.85rem;
+  height: 0.85rem;
+  opacity: 0;
+  color: var(--ink);
+}
+
+li.trow:hover .trow-no svg {
+  opacity: 1;
+}
+
+.trow-main {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  min-width: 0;
+}
+
+.trow-title {
+  display: block;
+  font-size: 0.9375rem;
+  font-weight: 500;
+  line-height: 1.3;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
-.strip-artist {
-  margin-top: 0.1rem;
-  font-family: var(--font-slip), ui-monospace, monospace;
-  font-size: 0.6875rem;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
+.trow-title:hover {
+  text-decoration: underline;
+}
+
+/* Side A track 1 keeps the accent, the way a now-playing row would. */
+.trow-lead .trow-title,
+.trow-lead .trow-no {
+  color: var(--hammer);
+}
+
+.trow-price {
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+  color: var(--ink);
+}
+
+.trow-lead .trow-price {
+  color: var(--hammer);
+}
+
+.trow-sub {
+  margin: 0.1rem 0 0;
+  font-size: 0.75rem;
   color: var(--chrome);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
-.strip-price {
-  font-family: var(--font-hand), ui-sans-serif, sans-serif;
-  font-size: 1.375rem;
-  line-height: 1;
-  color: var(--hammer);
+/* Used by the "just written on" list and anywhere a second line of
+   metadata sits under a title. */
+.strip-artist {
+  margin-top: 0.1rem;
+  font-size: 0.75rem;
+  color: var(--chrome);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
-/* The typed "SIDE A · TRACK 1" line across the top of an inlay. */
-.tapeline {
+/* ── numbered panels (the rules list) ───────────────────────── */
+
+.strip {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.75rem;
-  padding: 0.3rem 0.9rem;
-  border-bottom: 1px dashed var(--edge);
-  background: rgba(44, 74, 124, 0.04);
+  align-items: stretch;
+  overflow: hidden;
+  background: var(--strip);
+  border: 1px solid var(--edge);
+  border-radius: 6px;
+  transition: background 0.14s ease, border-color 0.14s ease;
 }
 
-/* ── reels ───────────────────────────────────────────────────── */
-
-.reel {
-  position: relative;
-  display: block;
-  width: 1.25rem;
-  height: 1.25rem;
-  border-radius: 999px;
-  border: 2px solid var(--chrome);
-  background:
-    radial-gradient(circle at center, var(--paper) 0 22%, transparent 23%),
-    conic-gradient(
-      from 0deg,
-      var(--ink) 0 8%,
-      transparent 8% 25%,
-      var(--ink) 25% 33%,
-      transparent 33% 50%,
-      var(--ink) 50% 58%,
-      transparent 58% 75%,
-      var(--ink) 75% 83%,
-      transparent 83%
-    );
+.strip:hover {
+  background: var(--strip-up);
+  border-color: #3a3a42;
 }
 
-.reel-spin {
-  animation: reel 2.6s linear infinite;
+.strip-tab {
+  flex: 0 0 3rem;
+  display: grid;
+  place-items: center;
+  background: var(--hammer-wash);
+  border-right: 1px solid var(--edge);
 }
 
-@keyframes reel {
-  to {
-    transform: rotate(360deg);
-  }
+.strip-lot {
+  font-size: 0.9375rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--hammer);
 }
 
 /* ── cover art ───────────────────────────────────────────────── */
 
 .art {
-  width: 2.75rem;
-  height: 2.75rem;
+  position: relative;
+  width: 2.5rem;
+  height: 2.5rem;
   flex-shrink: 0;
   display: block;
   padding: 0;
-  border: 1px solid var(--edge);
-  border-radius: 2px;
-  background: var(--press-wash);
+  overflow: hidden;
+  border: 0;
+  border-radius: 3px;
+  background: var(--strip-up);
   object-fit: cover;
   cursor: pointer;
-  overflow: hidden;
-}
-
-.art-lg {
-  width: 100%;
-  height: auto;
-  aspect-ratio: 1;
 }
 
 /* ── buttons ─────────────────────────────────────────────────── */
 
+/* Pills. A filled one is the action; an outlined one is everything else. */
 .btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 0.4rem;
-  height: 2.375rem;
-  padding-inline: 1rem;
-  border: 1.5px solid var(--ink);
-  border-radius: 2px;
-  background: var(--strip);
-  font-family: var(--font-slip), ui-monospace, monospace;
-  font-size: 0.6875rem;
+  gap: 0.45rem;
+  height: 2.5rem;
+  padding-inline: 1.15rem;
+  border: 1px solid var(--edge);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--ink);
+  font-size: 0.8125rem;
   font-weight: 700;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
+  letter-spacing: 0.01em;
   white-space: nowrap;
   cursor: pointer;
-  transition: background 0.14s ease, color 0.14s ease,
-    border-color 0.14s ease, transform 0.1s ease;
+  transition: background 0.14s ease, border-color 0.14s ease,
+    color 0.14s ease, transform 0.1s ease;
 }
 
 .btn:hover {
-  background: var(--ink);
-  color: var(--paper);
+  border-color: var(--ink);
+  background: rgba(255, 255, 255, 0.07);
 }
 
 .btn:active {
-  transform: translateY(1px);
+  transform: scale(0.98);
 }
 
 .btn:disabled {
-  opacity: 0.45;
+  opacity: 0.4;
   cursor: not-allowed;
   transform: none;
 }
 
+/* The one that takes money, and the one that starts the tape. */
 .btn-hammer {
   background: var(--hammer);
   border-color: var(--hammer);
-  color: #fff;
+  color: var(--on-hammer);
 }
 
 .btn-hammer:hover {
-  background: #a81f29;
-  border-color: #a81f29;
-  color: #fff;
+  background: #29d96b;
+  border-color: #29d96b;
+  color: var(--on-hammer);
 }
 
 .btn-press {
-  border-color: var(--press);
+  border-color: rgba(124, 178, 255, 0.5);
   color: var(--press);
 }
 
 .btn-press:hover {
-  background: var(--press);
-  color: #fff;
+  border-color: var(--press);
+  background: var(--press-wash);
+  color: var(--press);
 }
 
 .btn-ghost {
   border-color: transparent;
-  background: transparent;
   color: var(--chrome);
 }
 
 .btn-ghost:hover {
-  background: transparent;
-  border-color: var(--edge);
+  border-color: transparent;
   color: var(--ink);
 }
 
 .btn-lg {
-  height: 3rem;
-  padding-inline: 1.5rem;
-  font-size: 0.8125rem;
+  height: 3.125rem;
+  padding-inline: 1.75rem;
+  font-size: 0.9375rem;
 }
 
-.btn-step {
-  width: 2.375rem;
-  padding: 0;
-  font-size: 1.0625rem;
-  letter-spacing: 0;
+.btn-sm {
+  height: 2rem;
+  padding-inline: 0.85rem;
+  font-size: 0.75rem;
 }
 
 /* ── fields ──────────────────────────────────────────────────── */
 
 .label {
   display: block;
-  margin-bottom: 0.35rem;
+  margin-bottom: 0.45rem;
 }
 
 .field {
   width: 100%;
   height: 3rem;
-  padding-inline: 0.75rem;
-  border: 1.5px solid var(--ink);
-  border-radius: 2px;
-  background: var(--strip);
+  padding-inline: 0.9rem;
+  border: 1px solid var(--edge);
+  border-radius: 4px;
+  background: #0f0f11;
+  color: var(--ink);
   font-size: 0.9375rem;
   outline: none;
+  transition: border-color 0.14s ease, box-shadow 0.14s ease;
 }
 
 .field::placeholder {
-  color: var(--chrome);
+  color: #6f6f78;
 }
 
 .field:focus {
-  border-color: var(--press);
-  box-shadow: inset 0 -3px 0 var(--press);
+  border-color: var(--ink);
+  box-shadow: 0 0 0 1px var(--ink);
 }
 
-.field-select {
-  appearance: none;
-  padding-right: 2rem;
-  background-image: linear-gradient(45deg, transparent 50%, var(--ink) 50%),
-    linear-gradient(135deg, var(--ink) 50%, transparent 50%);
-  background-position: calc(100% - 1.05rem) 1.35rem,
-    calc(100% - 0.75rem) 1.35rem;
-  background-size: 6px 6px, 6px 6px;
-  background-repeat: no-repeat;
-}
-
-/* ── punched filter chips ────────────────────────────────────── */
+/* ── filter pills ────────────────────────────────────────────── */
 
 .punch {
   display: inline-flex;
   align-items: center;
   gap: 0.35rem;
-  height: 1.875rem;
-  padding-inline: 0.65rem;
-  border: 1px solid var(--edge);
+  height: 2rem;
+  padding-inline: 0.85rem;
+  border: 0;
   border-radius: 999px;
-  background: var(--strip);
-  font-family: var(--font-slip), ui-monospace, monospace;
-  font-size: 0.6875rem;
-  font-weight: 700;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  color: var(--chrome);
+  background: rgba(255, 255, 255, 0.09);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--ink);
   cursor: pointer;
   white-space: nowrap;
-  transition: color 0.14s ease, border-color 0.14s ease,
-    background 0.14s ease;
+  transition: background 0.14s ease, color 0.14s ease;
 }
 
 .punch:hover {
-  color: var(--ink);
-  border-color: var(--ink);
+  background: rgba(255, 255, 255, 0.16);
 }
 
-.punch-on {
-  background: var(--press);
-  border-color: var(--press);
-  color: #fff;
-}
-
+.punch-on,
 .punch-on:hover {
-  background: var(--press);
-  color: #fff;
+  background: var(--ink);
+  color: var(--paper);
 }
 
 /* ── cards ───────────────────────────────────────────────────── */
@@ -526,7 +628,7 @@ textarea {
 .card {
   background: var(--strip);
   border: 1px solid var(--edge);
-  border-radius: 4px;
+  border-radius: 8px;
 }
 
 .card-hd {
@@ -534,7 +636,7 @@ textarea {
   align-items: center;
   justify-content: space-between;
   gap: 0.75rem;
-  padding: 0.7rem 1rem;
+  padding: 0.8rem 1rem;
   border-bottom: 1px solid var(--edge);
 }
 
@@ -542,7 +644,7 @@ textarea {
   padding: 1rem;
 }
 
-/* ── figures (typed slips) ───────────────────────────────────── */
+/* ── figures (the counts under the header) ───────────────────── */
 
 .figures {
   display: grid;
@@ -557,54 +659,44 @@ textarea {
 }
 
 .figure {
-  padding: 0.85rem 0.95rem 0.9rem;
+  padding: 0.9rem 1rem 1rem;
   background: var(--strip);
   border: 1px solid var(--edge);
-  border-top: 3px solid var(--press);
-  border-radius: 3px;
+  border-radius: 8px;
+  transition: background 0.14s ease;
+}
+
+.figure:hover {
+  background: var(--strip-up);
 }
 
 .figure-lead {
-  border-top-color: var(--hammer);
+  background: linear-gradient(160deg, rgba(34, 197, 94, 0.16), var(--strip) 62%);
+  border-color: rgba(34, 197, 94, 0.35);
 }
 
 .figure-value {
-  margin-top: 0.4rem;
+  margin-top: 0.45rem;
   font-family: var(--font-hand), ui-sans-serif, sans-serif;
-  font-size: clamp(1.75rem, 4vw, 2.25rem);
+  font-weight: 800;
+  font-size: clamp(1.625rem, 4vw, 2.125rem);
   line-height: 1.05;
+  letter-spacing: -0.03em;
 }
 
 .figure-note {
-  margin-top: 0.3rem;
-  font-family: var(--font-slip), ui-monospace, monospace;
-  font-size: 0.6875rem;
+  margin-top: 0.35rem;
+  font-size: 0.75rem;
   color: var(--chrome);
 }
 
-/* ── the paddle (bid form) ───────────────────────────────────── */
+/* ── the paddle (the buy form) ───────────────────────────────── */
 
 .paddle {
-  position: relative;
-  margin-bottom: 1.75rem;
   background: var(--strip);
-  border: 2px solid var(--ink);
-  border-radius: 6px;
-}
-
-/* The paddle grip, so the form reads as a thing you raise. */
-.paddle::after {
-  content: "";
-  position: absolute;
-  left: 50%;
-  bottom: -1.625rem;
-  transform: translateX(-50%);
-  width: 2.75rem;
-  height: 1.625rem;
-  background: var(--strip);
-  border: 2px solid var(--ink);
-  border-top: 0;
-  border-radius: 0 0 5px 5px;
+  border: 1px solid var(--edge);
+  border-radius: 10px;
+  overflow: hidden;
 }
 
 .paddle-hd {
@@ -612,29 +704,22 @@ textarea {
   align-items: center;
   justify-content: space-between;
   gap: 0.75rem;
-  padding: 0.7rem 1rem;
-  background: var(--ink);
-  color: var(--paper);
-  border-radius: 4px 4px 0 0;
-}
-
-.paddle-hd .slip {
-  color: var(--paper);
+  padding: 0.85rem 1.15rem;
+  background: rgba(255, 255, 255, 0.035);
+  border-bottom: 1px solid var(--edge);
 }
 
 .paddle-no {
-  font-family: var(--font-slip), ui-monospace, monospace;
   font-size: 0.6875rem;
   font-weight: 700;
-  letter-spacing: 0.14em;
+  letter-spacing: 0.12em;
   text-transform: uppercase;
-  line-height: 1;
   color: var(--hammer);
   white-space: nowrap;
 }
 
 .paddle-bd {
-  padding: 1.1rem 1rem 1.25rem;
+  padding: 1.15rem;
 }
 
 /* ── live pill ───────────────────────────────────────────────── */
@@ -642,12 +727,17 @@ textarea {
 .live {
   display: inline-flex;
   align-items: center;
-  gap: 0.4rem;
-  height: 1.75rem;
-  padding-inline: 0.6rem;
-  border: 1px solid var(--hammer);
+  gap: 0.45rem;
+  height: 2rem;
+  padding-inline: 0.75rem;
+  border: 1px solid var(--edge);
   border-radius: 999px;
-  background: var(--hammer-wash);
+  background: rgba(255, 255, 255, 0.05);
+  transition: border-color 0.14s ease;
+}
+
+.live:hover {
+  border-color: var(--hammer);
 }
 
 .live-dot {
@@ -668,7 +758,7 @@ textarea {
   }
 }
 
-/* ── ledger (visitor stats) ──────────────────────────────────── */
+/* ── the ledger (visitor stats) ──────────────────────────────── */
 
 .bars {
   display: flex;
@@ -681,13 +771,13 @@ textarea {
   flex: 1 1 0;
   min-width: 0;
   min-height: 2px;
-  background: var(--press);
-  border-radius: 1px 1px 0 0;
+  background: #3f6f52;
+  border-radius: 2px 2px 0 0;
   transition: background 0.14s ease;
 }
 
 .bar-empty {
-  background: var(--edge);
+  background: #26262c;
 }
 
 .bar-now {
@@ -699,8 +789,8 @@ textarea {
   grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
   gap: 0.75rem;
-  padding-block: 0.45rem;
-  border-bottom: 1px dashed var(--edge);
+  padding-block: 0.5rem;
+  border-bottom: 1px solid var(--edge);
 }
 
 .lrow:last-child {
@@ -710,8 +800,8 @@ textarea {
 .ltrack {
   position: relative;
   height: 5px;
-  margin-top: 0.3rem;
-  background: var(--press-wash);
+  margin-top: 0.35rem;
+  background: rgba(255, 255, 255, 0.08);
   border-radius: 999px;
   overflow: hidden;
 }
@@ -720,31 +810,27 @@ textarea {
   position: absolute;
   inset-block: 0;
   left: 0;
-  background: var(--press);
+  background: var(--hammer);
   border-radius: 999px;
 }
 
 /* ── header nav ──────────────────────────────────────────────── */
 
-/* The sleeve spine: kraft, with the ballpoint rule under it. */
 .masthead {
   position: sticky;
   top: 0;
   z-index: 40;
-  background: rgba(239, 227, 200, 0.94);
-  backdrop-filter: blur(10px);
-  border-bottom: 2px solid var(--press);
+  background: rgba(10, 10, 11, 0.82);
+  backdrop-filter: blur(14px);
+  border-bottom: 1px solid var(--edge);
 }
 
 .nav {
-  font-family: var(--font-slip), ui-monospace, monospace;
-  font-size: 0.6875rem;
-  font-weight: 700;
-  letter-spacing: 0.13em;
-  text-transform: uppercase;
+  font-size: 0.8125rem;
+  font-weight: 600;
   color: var(--chrome);
-  padding-block: 0.25rem;
-  border-bottom: 2px solid transparent;
+  padding-block: 0.35rem;
+  transition: color 0.14s ease;
 }
 
 .nav:hover {
@@ -753,35 +839,18 @@ textarea {
 
 .nav-on {
   color: var(--ink);
-  border-bottom-color: var(--hammer);
 }
 
-/* ── the block (hero lot) ────────────────────────────────────── */
-
-.lot-block {
-  display: grid;
-  gap: 1.25rem;
-  align-items: center;
-  grid-template-columns: minmax(0, 1fr);
-  padding: 1.25rem;
-}
-
-@media (min-width: 760px) {
-  .lot-block {
-    grid-template-columns: 8.5rem minmax(0, 1fr) auto;
-    gap: 1.75rem;
-    padding: 1.5rem;
-  }
-}
+/* ── entrance ────────────────────────────────────────────────── */
 
 .settle {
-  animation: settle 0.5s cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation: settle 0.45s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
 @keyframes settle {
   from {
     opacity: 0;
-    transform: translateY(-14px) rotate(-0.7deg);
+    transform: translateY(-10px);
   }
   to {
     opacity: 1;
@@ -791,102 +860,181 @@ textarea {
 
 /* ── independence notice ─────────────────────────────────────── */
 
-/* Site-wide strip under the masthead: this is not Spotify. */
+/*
+   PlaylistBid is an independent fan project. Four treatments: the strip
+   under the masthead, the card below the hero, the footnote wherever
+   Spotify artwork or playback appears, and the footer.
+
+   Blue throughout — the colour this site uses for labels and links. The
+   green is the accent for prices and the play button, so keeping the
+   disclosure out of it stops the two reading as the same thing, and keeps
+   the disclosure from looking like an alert.
+*/
+
 .disclaim {
-  background: var(--hammer-wash);
-  border-bottom: 1px dashed var(--hammer);
+  background: rgba(124, 178, 255, 0.07);
+  border-bottom: 1px solid rgba(124, 178, 255, 0.2);
 }
 
 .disclaim-in {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 0.45rem 0.7rem;
+  gap: 0.35rem 0.6rem;
   padding-block: 0.5rem;
 }
 
 .disclaim-mark {
-  padding: 0.15rem 0.45rem;
-  border-radius: 2px;
-  background: var(--hammer);
-  color: #fff;
-  font-family: var(--font-slip), ui-monospace, monospace;
+  padding: 0.15rem 0.5rem;
+  border-radius: 999px;
+  background: rgba(124, 178, 255, 0.16);
+  color: var(--press);
   font-size: 0.625rem;
   font-weight: 700;
-  letter-spacing: 0.14em;
+  letter-spacing: 0.13em;
   text-transform: uppercase;
   white-space: nowrap;
 }
 
 .disclaim-text {
-  font-family: var(--font-slip), ui-monospace, monospace;
   font-size: 0.6875rem;
+  font-weight: 600;
   letter-spacing: 0.05em;
   text-transform: uppercase;
   color: var(--ink);
 }
 
-/* Rubber-stamped mark for the hero and the ledger. */
+/* The printed disclosure card. A product disclosure, not an alert:
+   one surface up from the room, one blue rule along the top edge. */
+.indie {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  padding: 0.95rem 1rem;
+  background: var(--strip);
+  border: 1px solid var(--edge);
+  border-top: 3px solid var(--press);
+  border-radius: 8px;
+}
+
+@media (min-width: 640px) {
+  .indie {
+    gap: 0.9rem;
+    padding: 1.05rem 1.2rem;
+  }
+}
+
+/* The information mark, drawn rather than typed. */
+.indie-mark {
+  flex-shrink: 0;
+  display: block;
+  width: 1.125rem;
+  height: 1.125rem;
+  margin-top: 0.15rem;
+  color: var(--press);
+}
+
+.indie-tag {
+  display: block;
+  font-size: 0.625rem;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--press);
+}
+
+.indie-text {
+  margin: 0.45rem 0 0;
+  max-width: 48ch;
+  font-size: 0.875rem;
+  line-height: 1.6;
+  color: #ccccd4;
+}
+
+/* "not affiliated with Spotify" — the part a visitor must not miss. Marked
+   rather than coloured: the green is the price accent and the blue is the
+   link colour, and this is neither. */
+.indie-text b {
+  font-weight: 700;
+  color: #fff;
+  box-shadow: inset 0 -0.4em 0 rgba(124, 178, 255, 0.22);
+}
+
+/* The contextual footnote for the tape and the paddle. */
+.footnote {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.55rem;
+  padding: 0.6rem 0.8rem;
+  border: 1px solid var(--edge);
+  border-radius: 6px;
+  background: rgba(124, 178, 255, 0.05);
+  font-size: 0.75rem;
+  line-height: 1.55;
+  color: #b9b9c2;
+}
+
+.footnote svg {
+  flex-shrink: 0;
+  margin-top: 0.18rem;
+  color: var(--press);
+}
+
+/* The footer mark. */
 .stamp {
   display: inline-block;
-  padding: 0.5rem 0.8rem;
-  border: 2.5px solid var(--hammer);
-  border-radius: 3px;
-  color: var(--hammer);
-  font-family: var(--font-slip), ui-monospace, monospace;
+  padding: 0.55rem 0.85rem;
+  border: 1px solid rgba(124, 178, 255, 0.35);
+  border-radius: 6px;
+  color: var(--press);
   font-size: 0.6875rem;
-  font-weight: 700;
-  letter-spacing: 0.13em;
+  font-weight: 600;
+  letter-spacing: 0.1em;
   line-height: 1.5;
   text-transform: uppercase;
-  transform: rotate(-2.2deg);
 }
 
 .stamp b {
   display: block;
-  font-family: var(--font-hand), ui-sans-serif, sans-serif;
-  font-size: 1.0625rem;
-  font-weight: 400;
-  letter-spacing: 0.02em;
+  font-size: 0.8125rem;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  color: var(--ink);
 }
 
-/* ── pay with (branded) ──────────────────────────────────────── */
+/* ── pay with ────────────────────────────────────────────────── */
 
-/* Logos stay on card stock so the brand colours read true; only the
-   frame and the amount change when an option is chosen. */
 .pay {
   display: flex;
   align-items: center;
-  gap: 0.6rem;
+  gap: 0.65rem;
   min-height: 3rem;
-  padding: 0.5rem 0.85rem;
-  border: 1.5px solid var(--edge);
-  border-radius: 3px;
-  background: var(--strip);
+  padding: 0.55rem 0.9rem;
+  border: 1px solid var(--edge);
+  border-radius: 6px;
+  background: #0f0f11;
   text-align: left;
-  transition: border-color 0.14s ease, box-shadow 0.14s ease;
+  transition: border-color 0.14s ease, background 0.14s ease;
 }
 
-/* Only a .pay that is actually a control reads as clickable. */
 button.pay {
   cursor: pointer;
 }
 
 button.pay:hover {
-  border-color: var(--ink);
+  border-color: var(--chrome);
 }
 
 .pay.pay-on,
 button.pay.pay-on:hover {
-  border-color: var(--hammer);
-  border-width: 2px;
-  box-shadow: inset 0 -3px 0 var(--hammer-wash);
+  border-color: rgba(34, 197, 94, 0.55);
+  background: rgba(34, 197, 94, 0.07);
 }
 
 .paymark {
   display: inline-flex;
   align-items: center;
-  gap: 0.35rem;
+  gap: 0.4rem;
 }
 
 .paymark svg {
@@ -895,16 +1043,10 @@ button.pay.pay-on:hover {
 }
 
 .paymark-word {
-  font-family: var(--font-body), ui-sans-serif, system-ui, sans-serif;
   font-size: 0.9375rem;
-  font-style: italic;
   font-weight: 700;
   letter-spacing: -0.01em;
   white-space: nowrap;
-}
-
-.paymark-word b {
-  font-weight: 700;
 }
 
 .pay-meta {
@@ -914,10 +1056,10 @@ button.pay.pay-on:hover {
 }
 
 .pay-amt {
-  font-family: var(--font-hand), ui-sans-serif, sans-serif;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
   font-size: 1.0625rem;
-  line-height: 1.1;
-  color: var(--ink);
+  line-height: 1.15;
 }
 
 .pay-on .pay-amt {
@@ -926,56 +1068,58 @@ button.pay.pay-on:hover {
 
 /* ── notices ─────────────────────────────────────────────────── */
 
+/* Something the visitor needs to read before going further. Amber, so it
+   is never confused with the green that means "this is the price". */
 .notice {
   padding: 0.85rem 1rem;
-  border: 1px solid var(--hammer);
-  border-left-width: 4px;
-  border-radius: 3px;
-  background: var(--hammer-wash);
+  border: 1px solid rgba(245, 179, 66, 0.4);
+  border-radius: 6px;
+  background: rgba(245, 179, 66, 0.09);
+  color: #f3d9a8;
 }
 
 .notice-press {
-  border-color: var(--press);
+  border-color: rgba(124, 178, 255, 0.4);
   background: var(--press-wash);
+  color: #cfe0ff;
 }
 
-/* ── the rank picker (buy a track position) ──────────────────── */
+/* ── the slot picker ─────────────────────────────────────────── */
 
-/* A column of tape slots you can point at. The one you pick gets the
-   marker treatment, the same red as the price you'll pay for it. */
 .slots {
   display: grid;
   gap: 0.4rem;
   max-height: 17rem;
   overflow-y: auto;
-  padding-right: 0.15rem;
+  padding-right: 0.2rem;
   scrollbar-width: thin;
 }
 
 .slot {
   display: grid;
-  grid-template-columns: 2.5rem minmax(0, 1fr) auto;
+  grid-template-columns: 3rem minmax(0, 1fr) auto;
   align-items: center;
   gap: 0.7rem;
   width: 100%;
-  padding: 0.5rem 0.7rem;
-  border: 1.5px solid var(--edge);
-  border-radius: 2px;
-  background: var(--strip);
+  padding: 0.55rem 0.75rem;
+  border: 1px solid var(--edge);
+  border-radius: 6px;
+  background: #0f0f11;
+  color: var(--ink);
   cursor: pointer;
   text-align: left;
   transition: border-color 0.14s ease, background 0.14s ease;
 }
 
 .slot:hover {
-  border-color: var(--ink);
+  border-color: var(--chrome);
+  background: var(--strip-up);
 }
 
 .slot.slot-on,
 .slot.slot-on:hover {
   border-color: var(--hammer);
-  border-width: 2px;
-  background: var(--hammer-wash);
+  background: rgba(34, 197, 94, 0.1);
 }
 
 .slot:disabled {
@@ -984,31 +1128,30 @@ button.pay.pay-on:hover {
 }
 
 .slot-no {
-  font-family: var(--font-slip), ui-monospace, monospace;
   font-size: 0.6875rem;
   font-weight: 700;
-  letter-spacing: 0.1em;
+  letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: var(--press);
+  color: var(--chrome);
 }
 
 .slot-on .slot-no {
   color: var(--hammer);
 }
 
-/* Who you'd be moving down a slot. */
 .slot-holder {
   min-width: 0;
   font-size: 0.8125rem;
+  color: #c6c6ce;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
 .slot-cost {
-  font-family: var(--font-hand), ui-sans-serif, sans-serif;
-  font-size: 1.125rem;
-  line-height: 1;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  font-size: 0.9375rem;
   white-space: nowrap;
 }
 
@@ -1016,18 +1159,18 @@ button.pay.pay-on:hover {
   color: var(--hammer);
 }
 
-/* ── the deck (sticky mini-player) ───────────────────────────── */
+/* ── the deck (now playing) ──────────────────────────────────── */
 
-/* The cassette deck along the bottom: dark shell, two turning reels, and
-   Spotify's own embed doing the actual playing. */
+/* Docked along the bottom: the cover, what is playing, and Spotify's own
+   embedded player doing the actual playing. */
 .deck {
   position: fixed;
   inset-inline: 0;
   bottom: 0;
   z-index: 60;
   background: var(--shell);
-  border-top: 3px solid var(--hammer);
-  box-shadow: 0 -8px 24px -12px rgba(42, 33, 24, 0.55);
+  border-top: 1px solid var(--edge);
+  box-shadow: 0 -10px 30px -14px rgba(0, 0, 0, 0.9);
 }
 
 .deck-in {
@@ -1037,44 +1180,13 @@ button.pay.pay-on:hover {
   width: 100%;
   max-width: var(--rack);
   margin: 0 auto;
-  padding: 0.55rem 1.125rem;
+  padding: 0.6rem 1rem;
 }
 
 @media (min-width: 768px) {
   .deck-in {
     padding-inline: 2rem;
   }
-}
-
-.deck-reels {
-  display: none;
-  gap: 0.55rem;
-}
-
-@media (min-width: 640px) {
-  .deck-reels {
-    display: flex;
-  }
-}
-
-/* On the dark shell the reels read as chrome, not pencil. */
-.deck .reel {
-  width: 1.5rem;
-  height: 1.5rem;
-  border-color: #6f6555;
-  background:
-    radial-gradient(circle at center, var(--shell) 0 22%, transparent 23%),
-    conic-gradient(
-      from 0deg,
-      #cbbfa6 0 8%,
-      transparent 8% 25%,
-      #cbbfa6 25% 33%,
-      transparent 33% 50%,
-      #cbbfa6 50% 58%,
-      transparent 58% 75%,
-      #cbbfa6 75% 83%,
-      transparent 83%
-    );
 }
 
 .deck-meta {
@@ -1091,7 +1203,6 @@ button.pay.pay-on:hover {
 
 .deck-now {
   margin: 0;
-  font-family: var(--font-slip), ui-monospace, monospace;
   font-size: 0.5625rem;
   font-weight: 700;
   letter-spacing: 0.18em;
@@ -1100,11 +1211,11 @@ button.pay.pay-on:hover {
 }
 
 .deck-title {
-  margin: 0.1rem 0 0;
-  font-family: var(--font-hand), ui-sans-serif, sans-serif;
-  font-size: 1rem;
-  line-height: 1.15;
-  color: var(--paper);
+  margin: 0.15rem 0 0;
+  font-size: 0.875rem;
+  font-weight: 600;
+  line-height: 1.2;
+  color: var(--ink);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -1112,11 +1223,8 @@ button.pay.pay-on:hover {
 
 .deck-artist {
   margin: 0;
-  font-family: var(--font-slip), ui-monospace, monospace;
-  font-size: 0.625rem;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: #9a8f7c;
+  font-size: 0.75rem;
+  color: var(--chrome);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -1134,47 +1242,33 @@ button.pay.pay-on:hover {
   flex-shrink: 0;
   width: 2.25rem;
   height: 2.25rem;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  border: 1px solid #58503f;
-  border-radius: 2px;
+  display: inline-grid;
+  place-items: center;
+  border: 1px solid var(--edge);
+  border-radius: 999px;
   background: transparent;
-  color: var(--paper);
-  font-size: 1rem;
-  line-height: 1;
+  color: var(--chrome);
   cursor: pointer;
-  transition: background 0.14s ease, border-color 0.14s ease;
+  transition: color 0.14s ease, border-color 0.14s ease;
 }
 
 .deck-eject:hover {
-  background: var(--hammer);
-  border-color: var(--hammer);
-  color: #fff;
+  color: var(--ink);
+  border-color: var(--ink);
 }
 
-/* Room at the end of the page so the deck never sits on the last label. */
+/* Room at the end of the page so the deck never sits on the last row. */
 .deck-space {
   height: 6.5rem;
 }
 
-.scroll-x {
-  overflow-x: auto;
-  scrollbar-width: thin;
-}
-
-.dashed-t {
-  border-top: 1px dashed var(--edge);
-}
-
 @media (prefers-reduced-motion: reduce) {
   .settle,
-  .live-dot,
-  .reel-spin {
+  .live-dot {
     animation: none !important;
   }
 
-  .strip:hover {
+  .fab:hover {
     transform: none;
   }
 }

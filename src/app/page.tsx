@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { SiteFooter, SiteHeader } from "@/components/chrome";
 import { HomeBoard } from "@/components/home-board";
+import { IndependenceCard } from "@/components/independence";
 import { HomeJsonLd } from "@/components/json-ld";
 
 const CONDITIONS = [
@@ -14,7 +15,7 @@ const CONDITIONS = [
   },
   {
     title: "The price decides the position",
-    body: "The tape is ordered by price, highest first. Pay for a slot and the song is written on straight away — card checkout opens right after.",
+    body: "The tape is ordered by price, highest first. Picking a slot opens a card checkout, and the song is written on once that payment is confirmed.",
   },
   {
     title: "The same link moves up, never repeats",
@@ -47,10 +48,11 @@ export default function Page() {
         </h1>
         <p className="mt-5 max-w-2xl text-[1.0625rem] leading-relaxed">
           It&apos;s one long mixtape and every slot on it has a price. Paste a
-          public Spotify link, choose the exact position you want — side A track
-          1, side B track 4 — and pay what that slot costs. The song lands there
-          and everything below shifts one track later. A position here is a slot
-          on this site; it does not change Spotify playlists, charts or streams.
+          public Spotify track link, choose the exact position you want — side A
+          track 1, side B track 4 — and pay what that slot costs. The song lands
+          there and everything below shifts one track later. A position here is a
+          slot on this site; it does not change Spotify playlists, charts,
+          rankings or streams.
         </p>
         <div className="mt-7 flex flex-wrap items-center gap-2.5">
           <a href="#bid" className="btn btn-hammer btn-lg">
@@ -62,10 +64,14 @@ export default function Page() {
           <Link href="/stats" className="btn btn-press btn-lg">
             Liner notes
           </Link>
-          <div className="stamp ml-1">
-            <b>not affiliated with spotify</b>
-            Independent fan project · no connection to Spotify AB
-          </div>
+        </div>
+
+        {/*
+          Directly below the introduction, before the tape itself: a visitor
+          cannot reach the songs without passing this.
+        */}
+        <div className="mt-7 max-w-2xl">
+          <IndependenceCard />
         </div>
       </section>
 
@@ -110,10 +116,12 @@ export default function Page() {
             the track last moved.
           </p>
           <p>
-            Your tape is saved in your own browser. Visitor counts are measured
-            server-side from a random id your browser keeps — no IP addresses,
-            cookies or user agents. PlaylistBid is not affiliated with, endorsed
-            by, or connected to Spotify AB.
+            The tape is kept on the server, so the running order you see is the
+            running order everyone sees. Visitor counts are measured server-side
+            from a random id your browser keeps — no IP addresses, cookies or
+            user agents. PlaylistBid is an independent fan project and is not
+            affiliated with, endorsed by, sponsored by, or connected to Spotify
+            AB.
           </p>
         </div>
       </section>

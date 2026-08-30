@@ -1,11 +1,12 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { SiteFooter, SiteHeader } from "@/components/chrome";
+import { IndependenceCard } from "@/components/independence";
 
 export const metadata: Metadata = {
   title: "How the tape works",
   description:
-    "How PlaylistBid works: pick a track position, pay a dollar more than whoever holds it, and the song lands on that slot. Track links only, official Spotify player, positions on this site only — not on Spotify.",
+    "How PlaylistBid works: pick a track position, pay a dollar more than whoever holds it, and the song lands on that slot. Track links only, playback in Spotify's own embedded player, positions on this site only. An independent fan project, not affiliated with Spotify AB.",
   alternates: { canonical: "/rules" },
 };
 
@@ -27,8 +28,8 @@ const CONDITIONS = [
     body: "The tape is ordered by price, highest first. When two songs carry the same price the one written on earlier stays above — which is what makes a bought slot land exactly where you paid.",
   },
   {
-    head: "The song is written on as you pay",
-    body: "Picking a slot writes the song onto the tape at that price and then opens the card checkout. There is no confirmation step to come back to — position always follows the price.",
+    head: "The song goes on once the payment clears",
+    body: "Picking a slot opens a card checkout. The tape only moves when the payment is confirmed back to us — so a checkout you abandon changes nothing, and nothing you click here can write a song on by itself.",
   },
   {
     head: "The same link moves up, never repeats",
@@ -44,11 +45,11 @@ const CONDITIONS = [
   },
   {
     head: "Titles and playback come from Spotify",
-    body: "Names, artists and cover art are read from Spotify’s public oEmbed endpoint; playback runs in the official embedded player. Nothing is uploaded or rehosted.",
+    body: "Names, artists and cover art are read from Spotify’s public oEmbed endpoint, and playback runs in Spotify’s own embedded player. Nothing is uploaded or rehosted, and none of it makes PlaylistBid a Spotify product.",
   },
   {
-    head: "Your tape lives in your browser",
-    body: "Slots and payment history are stored in this browser’s local storage. Visitor counts in the liner notes are the part measured server-side for everyone.",
+    head: "One tape, the same for everyone",
+    body: "The tape is kept on the server, not in your browser, so the positions you see are the positions everyone sees. Your receipt is the one private part — it is readable only by the browser that opened the checkout.",
   },
 ] as const;
 
@@ -65,15 +66,18 @@ export default function RulesPage() {
           PlaylistBid is one mixtape on{" "}
           <span className="hammer">this website</span>. Every track position has a
           price, and you buy the position rather than a rank you hope for.
-          Playback runs through Spotify’s official player. We do not add songs to
-          Spotify playlists and we do not touch streams.
+          Playback runs through Spotify’s official embedded player. We do not add
+          songs to Spotify playlists and we do not touch streams.
         </p>
+
+        <div className="mt-6 max-w-2xl">
+          <IndependenceCard />
+        </div>
 
         <ol className="mt-7 grid gap-3 sm:grid-cols-2">
           {CONDITIONS.map((item, i) => (
             <li key={item.head} className="strip">
               <div className="strip-tab">
-                <span className="hole" aria-hidden />
                 <span className="strip-lot">{String(i + 1).padStart(2, "0")}</span>
               </div>
               <div className="min-w-0 flex-1 p-4">
@@ -87,10 +91,12 @@ export default function RulesPage() {
         <hr className="hair my-8" />
 
         <p className="max-w-3xl text-xs leading-relaxed chrome">
-          PlaylistBid is not affiliated with, endorsed by, or connected to Spotify
-          AB. Spotify is a trademark of Spotify AB. Payments are handled by Dodo
-          Payments on their own hosted checkout — we never see your card
-          details.
+          PlaylistBid is an independent fan project. It is not affiliated with,
+          endorsed by, sponsored by, or connected to Spotify AB. Spotify is a
+          trademark of Spotify AB. Track positions exist only on PlaylistBid and
+          do not change Spotify playlists, charts, rankings, or streams. Payments
+          are handled by Dodo Payments on their own hosted checkout — we never
+          see your card details.
         </p>
       </main>
       <SiteFooter />

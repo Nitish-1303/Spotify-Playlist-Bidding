@@ -51,3 +51,25 @@ export function sideOf(rank: number) {
 export function trackOnSide(rank: number) {
   return rank <= 6 ? rank : rank - 6;
 }
+
+/** How the wire names a position: rank 1 is "A1", rank 8 is "B2". */
+export function slotCode(rank: number) {
+  return `${sideOf(rank)}${trackOnSide(rank)}`;
+}
+
+/**
+ * Reads a slot code back to a rank. Returns null for anything that is not a
+ * side letter followed by a track number, so a hostile position is rejected
+ * before it reaches the pricing code rather than being coerced to 1.
+ */
+export function parseSlotCode(input: unknown): number | null {
+  if (typeof input === "number") {
+    return Number.isInteger(input) && input >= 1 ? input : null;
+  }
+  if (typeof input !== "string") return null;
+  const match = input.trim().toUpperCase().match(/^([AB])([1-9][0-9]{0,2})$/);
+  if (!match) return null;
+  const track = Number(match[2]);
+  if (match[1] === "A") return track <= 6 ? track : null;
+  return track + 6;
+}

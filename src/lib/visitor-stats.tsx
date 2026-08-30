@@ -18,7 +18,12 @@ import {
 
 const VISITOR_KEY = "playlistbid-visitor-id";
 
-function readVisitorId() {
+/**
+ * A random id this browser keeps for itself. No IP address, no fingerprint —
+ * it is how a view is counted once and how a play is counted once. Also used by
+ * the play counter on the tape.
+ */
+export function readVisitorId() {
   if (typeof window === "undefined") return "";
   try {
     const existing = window.localStorage.getItem(VISITOR_KEY);

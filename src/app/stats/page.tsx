@@ -6,7 +6,7 @@ import { StatsView } from "@/components/stats-view";
 export const metadata: Metadata = {
   title: "Liner notes — live listeners and tape figures",
   description:
-    "Live traffic and tape figures for PlaylistBid: people listening now, views today, top pages, referrers, track prices and money by shelf.",
+    "Live traffic and tape figures for PlaylistBid: people listening now, views today, top pages, referrers, and what each track on the tape is holding.",
   alternates: { canonical: "/stats" },
 };
 
@@ -20,9 +20,8 @@ export default function StatsPage() {
         </Link>
         <h1 className="marquee mt-4 text-4xl">Liner notes</h1>
         <p className="mt-4 max-w-2xl leading-relaxed">
-          Two sets of numbers. Traffic is counted server-side for everyone who
-          opens the site. The tape figures are the confirmed payments saved in
-          this browser.
+          Two sets of numbers, both counted server-side: traffic from everyone
+          who opens the site, and the tape as confirmed payments have left it.
         </p>
         <div className="mt-7">
           <StatsView />
