@@ -1,4 +1,4 @@
-import { spotifyTrackUrl } from "./spotify";
+import { spotifyEmbedUrl, spotifyTrackUrl } from "./spotify";
 
 /**
  * Track lookup against Spotify's public catalogue. Server-only: this module
@@ -154,21 +154,61 @@ async function fetchFromWebApi(trackId: string): Promise<SpotifyMeta | null> {
   }
 }
 
-/**
- * Title, artist and cover for a track id.
+/* —— The embed page, for the artist neither of the others can give ——
  *
- * The Web API answers when it is configured and reachable. oEmbed is the
- * fallback and stays the arbiter of whether a link is a real track: it is what
- * turns a mistyped id into the message the payer reads. When neither knows the
- * artist the field comes back empty rather than filled with a guess, and the
- * interface then prints the title alone.
+ * The Web API is the official source and answers whenever it can. It cannot
+ * always: Spotify refuses every /v1 catalogue read with 403 unless the account
+ * that owns the credentials holds Premium. oEmbed, the documented public
+ * endpoint, has no artist field at all. Between them that leaves a tape where
+ * whether a song shows its artist depends on somebody's subscription, which is
+ * not a difference a visitor should ever be able to see.
  *
- * No page is scraped either way, and playback stays in Spotify's own embed.
+ * So the last resort is the document Spotify already serves to this site on
+ * every row: open.spotify.com/embed/track/…, the player iframe's own page. Its
+ * bootstrap JSON carries the artist. It is fetched exactly as a browser fetches
+ * it, nothing private is read, and no listener is authenticated.
+ *
+ * Undocumented, which is why it sits last and why every failure here is silent.
+ * A page whose shape has changed means no artist — the same state as before
+ * this function existed — and never a song that cannot go on the tape.
  */
-export async function fetchTrackMeta(trackId: string): Promise<SpotifyMeta> {
-  const rich = await fetchFromWebApi(trackId);
-  if (rich) return rich;
+async function fetchArtistFromEmbed(trackId: string): Promise<string> {
+  try {
+    const res = await fetch(spotifyEmbedUrl(trackId), { cache: "no-store" });
+    if (!res.ok) return "";
 
+    const html = await res.text();
+    const bootstrap = html.match(
+      /<script id="__NEXT_DATA__"[^>]*>([\s\S]*?)<\/script>/,
+    );
+    if (!bootstrap) return "";
+
+    const data = JSON.parse(bootstrap[1]) as {
+      props?: {
+        pageProps?: {
+          state?: { data?: { entity?: { artists?: { name?: string }[] } } };
+        };
+      };
+    };
+
+    return (data.props?.pageProps?.state?.data?.entity?.artists ?? [])
+      .map((a) => a.name?.trim())
+      .filter(Boolean)
+      .join(", ");
+  } catch (err) {
+    console.error("[spotify] embed artist lookup failed", err);
+    return "";
+  }
+}
+
+/**
+ * Title and cover from the documented public endpoint.
+ *
+ * Also the arbiter of whether a link is a real track at all: this is the one
+ * that turns a mistyped id into the message the payer reads, which is why it
+ * throws where the other two return nothing.
+ */
+async function fetchFromOembed(trackId: string): Promise<SpotifyMeta> {
   const url = `https://open.spotify.com/oembed?url=${encodeURIComponent(spotifyTrackUrl(trackId))}`;
   const res = await fetch(url);
   if (!res.ok) {
@@ -186,4 +226,32 @@ export async function fetchTrackMeta(trackId: string): Promise<SpotifyMeta> {
     artist: data.author_name?.trim() || "",
     thumbnailUrl: data.thumbnail_url || "",
   };
+}
+
+/**
+ * Title, artist and cover for a track id.
+ *
+ * Three sources, in descending order of how official they are: the Web API
+ * when it is configured and permitted, then oEmbed for the title and the cover,
+ * then the embed page for the artist oEmbed does not carry. Whichever way the
+ * answer is assembled, an artist that nothing knows comes back empty rather
+ * than guessed at, and the interface prints the title alone.
+ *
+ * A missing artist can never fail a lookup. By the time this runs during a
+ * purchase the payment is already being taken, so the only failure it is
+ * allowed to report is a link that is not a track.
+ */
+export async function fetchTrackMeta(trackId: string): Promise<SpotifyMeta> {
+  const official = await fetchFromWebApi(trackId);
+  if (official) return official;
+
+  // Concurrent on purpose. oEmbed never carries an artist, so the embed page is
+  // not a retry after a miss — it is the other half of one answer, and asking
+  // for both at once keeps a lookup at a single round trip's latency.
+  const [meta, embedArtist] = await Promise.all([
+    fetchFromOembed(trackId),
+    fetchArtistFromEmbed(trackId),
+  ]);
+
+  return { ...meta, artist: meta.artist || embedArtist };
 }

@@ -40,12 +40,28 @@ const FULL_TRACK = {
   },
 };
 
+/** The embed page's bootstrap JSON, cut down to the part that is read. */
+function embedOk(artists: string[]) {
+  const payload = {
+    props: {
+      pageProps: {
+        state: { data: { entity: { artists: artists.map((name) => ({ name })) } } },
+      },
+    },
+  };
+  return new Response(
+    `<html><body><script id="__NEXT_DATA__" type="application/json">${JSON.stringify(payload)}</script></body></html>`,
+    { status: 200 },
+  );
+}
+
 /** Answers by URL, so a test never depends on call order. */
 function routeFetch(
   handlers: Partial<{
     token: () => Response;
     track: () => Response;
     oembed: () => Response;
+    embed: () => Response;
   }>,
 ) {
   return vi.fn(async (input: RequestInfo | URL) => {
@@ -57,6 +73,14 @@ function routeFetch(
     if (url.includes("api.spotify.com")) {
       if (!handlers.track) throw new Error(`unexpected track call: ${url}`);
       return handlers.track();
+    }
+    // Before the oembed arm: the oEmbed URL contains "embed" too.
+    if (url.includes("/embed/track/")) {
+      // No handler means a page with nothing recognisable in it, so the artist
+      // comes back empty — which is what every case written before this source
+      // existed expects.
+      if (!handlers.embed) return new Response("<html></html>", { status: 200 });
+      return handlers.embed();
     }
     if (url.includes("oembed")) {
       if (!handlers.oembed) throw new Error(`unexpected oembed call: ${url}`);
@@ -222,11 +246,17 @@ describe("fetchTrackMeta — oEmbed fallback", () => {
 
     expect(meta).toEqual({
       title: "Song Without An Artist",
-      // oEmbed has no artist field, so the field is empty rather than a guess.
+      // oEmbed has no artist field, and this page had nothing readable in it
+      // either, so the field is empty rather than a guess.
       artist: "",
       thumbnailUrl: "https://i.scdn.co/image/oembed",
     });
-    expect(fetchMock).toHaveBeenCalledTimes(1);
+    // Nothing was asked of the Web API: no credentials, no token request.
+    expect(
+      fetchMock.mock.calls.filter(([u]) =>
+        /accounts\.spotify\.com|api\.spotify\.com/.test(String(u)),
+      ),
+    ).toHaveLength(0);
   });
 
   it("falls back when the token is refused", async () => {
@@ -309,6 +339,99 @@ describe("fetchTrackMeta — oEmbed fallback", () => {
     // And the refusal is visible rather than silent: without a log line an app
     // whose credentials are refused looks exactly like one with none.
     expect(errors).toHaveBeenCalledWith("[spotify] track lookup refused", 403);
+  });
+
+  it("takes the artist from the embed page when the Web API is refused", async () => {
+    // The case the live site is in: no Premium on the account behind the
+    // credentials, so /v1 is 403 and oEmbed has no artist field. The artist
+    // must still reach the tape — whether a song shows one cannot depend on
+    // somebody's subscription.
+    vi.stubGlobal(
+      "fetch",
+      routeFetch({
+        token: tokenOk,
+        track: () => new Response("premium required", { status: 403 }),
+        oembed: () =>
+          oembedOk({
+            title: "Never Gonna Give You Up",
+            thumbnail_url: "https://i.scdn.co/image/oembed",
+          }),
+        embed: () => embedOk(["Rick Astley"]),
+      }),
+    );
+
+    expect(await fetchTrackMeta(TRACK)).toEqual({
+      title: "Never Gonna Give You Up",
+      artist: "Rick Astley",
+      thumbnailUrl: "https://i.scdn.co/image/oembed",
+    });
+  });
+
+  it("joins every credited artist from the embed page", async () => {
+    vi.stubGlobal(
+      "fetch",
+      routeFetch({
+        oembed: () => oembedOk({ title: "Collab", thumbnail_url: "" }),
+        embed: () => embedOk(["Rick Astley", "Someone Else"]),
+      }),
+    );
+    delete process.env.SPOTIFY_CLIENT_ID;
+
+    const meta = await fetchTrackMeta(TRACK);
+    expect(meta.artist).toBe("Rick Astley, Someone Else");
+  });
+
+  it("prints the title alone when the embed page is not readable", async () => {
+    // The undocumented source is allowed to break. What it is never allowed to
+    // do is stop a song reaching the tape: the payment is already taken.
+    vi.stubGlobal(
+      "fetch",
+      routeFetch({
+        oembed: () => oembedOk({ title: "Shape Changed", thumbnail_url: "" }),
+        embed: () => new Response("<html>not what it was</html>", { status: 200 }),
+      }),
+    );
+    delete process.env.SPOTIFY_CLIENT_ID;
+
+    const meta = await fetchTrackMeta(TRACK);
+    expect(meta).toEqual({
+      title: "Shape Changed",
+      artist: "",
+      thumbnailUrl: "",
+    });
+  });
+
+  it("survives an embed page that answers with broken json", async () => {
+    vi.stubGlobal(
+      "fetch",
+      routeFetch({
+        oembed: () => oembedOk({ title: "Still Fine", thumbnail_url: "" }),
+        embed: () =>
+          new Response(
+            '<script id="__NEXT_DATA__" type="application/json">{ not json </script>',
+            { status: 200 },
+          ),
+      }),
+    );
+    delete process.env.SPOTIFY_CLIENT_ID;
+
+    const meta = await fetchTrackMeta(TRACK);
+    expect(meta.title).toBe("Still Fine");
+    expect(meta.artist).toBe("");
+  });
+
+  it("prefers the Web API's artist over the embed page", async () => {
+    // When the official source answers, the undocumented one is not even asked.
+    const fetchMock = routeFetch({
+      token: tokenOk,
+      track: () => trackOk(FULL_TRACK),
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    expect((await fetchTrackMeta(TRACK)).artist).toBe("Rick Astley");
+    expect(
+      fetchMock.mock.calls.filter(([u]) => String(u).includes("/embed/track/")),
+    ).toHaveLength(0);
   });
 
   it("still refuses a link that is not a track", async () => {
