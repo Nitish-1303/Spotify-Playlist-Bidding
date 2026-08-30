@@ -980,6 +980,34 @@ li.trow:hover .trow-no svg {
   color: var(--press);
 }
 
+/* The attribution footnote stacks: Spotify's credit line, then ours. */
+.footnote-col {
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.attrib,
+.attrib-note {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.55rem;
+  margin: 0;
+}
+
+/* Spotify's logo, at their sizes. 88px clears their 70px minimum for the full
+   lockup, and the exclusion zone is half the icon's height — 12px here. */
+.attrib-logo {
+  flex-shrink: 0;
+  width: 88px;
+  height: auto;
+  margin: 12px 12px 12px 0;
+}
+
+.attrib-note {
+  padding-top: 0.5rem;
+  border-top: 1px solid var(--edge);
+}
+
 /* The footer mark. */
 .stamp {
   display: inline-block;

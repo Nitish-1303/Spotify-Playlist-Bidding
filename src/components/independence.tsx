@@ -70,18 +70,40 @@ export function IndependenceCard() {
 /**
  * The contextual footnote for the tape: covers, links and the embedded player
  * all come from Spotify, and none of that makes Spotify a party to this site.
+ *
+ * Spotify's design guidelines require displayed metadata to be accompanied by
+ * their logo, so their own unmodified white lockup sits on the attribution line.
+ * It is deliberately kept on its own line, above the independence sentence and
+ * away from our own mark: the logo credits Spotify's content, and nothing more
+ * should be read into it. See public/spotify/README.md for the full rules —
+ * white on this background, never recoloured, never beside the PlaylistBid logo.
  */
 export function SpotifyContentNote({ className }: { className?: string }) {
   return (
-    <p className={`footnote ${className ?? ""}`}>
-      <InfoMark className="h-3.5 w-3.5" />
-      <span>
-        Song titles, artwork and playback are provided through Spotify&apos;s
-        own supported services — its public oEmbed endpoint and its official
-        embedded player. {SITE_NAME} is an independent fan project and is not
-        affiliated with Spotify AB.
-      </span>
-    </p>
+    <div className={`footnote footnote-col ${className ?? ""}`}>
+      <p className="attrib">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src="/spotify/Full_Logo_White_RGB.svg"
+          alt="Spotify"
+          width={88}
+          height={24}
+          className="attrib-logo"
+        />
+        <span>
+          Song titles, artwork and playback are provided through Spotify&apos;s
+          own supported services — its public oEmbed endpoint and its official
+          embedded player. Each title links to the track on Spotify.
+        </span>
+      </p>
+      <p className="attrib-note">
+        <InfoMark className="h-3.5 w-3.5" />
+        <span>
+          {SITE_NAME} is an independent fan project and is not affiliated with
+          Spotify AB.
+        </span>
+      </p>
+    </div>
   );
 }
 
