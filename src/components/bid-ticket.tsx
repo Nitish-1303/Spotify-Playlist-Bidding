@@ -114,6 +114,13 @@ export function BidTicket({
     e.preventDefault();
     const trackId = parseSpotifyTrackId(url);
     if (!trackId) {
+      // An empty box is not worth asking the server about. It would answer with
+      // this same sentence, and /api/track is public and unauthenticated, so the
+      // requests it does not have to serve are the cheapest ones to save.
+      if (!url.trim()) {
+        setStatus("Paste a song link first — open.spotify.com/track/…");
+        return;
+      }
       await resolveTyped(url);
       return;
     }

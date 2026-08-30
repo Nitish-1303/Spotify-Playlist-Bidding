@@ -1,6 +1,11 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { artistLine } from "@/lib/format";
-import { fetchTrackMeta, resetSpotifyToken } from "@/lib/spotify-api";
+import {
+  fetchTrackMeta,
+  resetSpotifyToken,
+  SpotifyUnavailableError,
+  TrackNotFoundError,
+} from "@/lib/spotify-api";
 
 /**
  * The track lookup: Web API first for the artist, oEmbed as the fallback.
@@ -448,6 +453,112 @@ describe("fetchTrackMeta — oEmbed fallback", () => {
     await expect(fetchTrackMeta(TRACK)).rejects.toThrow(
       /Paste a song link, not a playlist/,
     );
+  });
+});
+
+/* —— A bad link and a bad moment are not the same failure ——
+ *
+ * These cases exist because they were once one error, and a single 429 from a
+ * public endpoint nobody here controls read to a buyer as a broken checkout on
+ * a link that was perfectly good.
+ */
+describe("fetchTrackMeta — transient oEmbed failures", () => {
+  beforeEach(() => {
+    delete process.env.SPOTIFY_CLIENT_ID;
+    delete process.env.SPOTIFY_CLIENT_SECRET;
+  });
+
+  /** Fails the first n oEmbed calls with `status`, then answers. */
+  function flaky(status: number, failures: number) {
+    let seen = 0;
+    return routeFetch({
+      oembed: () => {
+        seen += 1;
+        return seen <= failures
+          ? new Response("later", { status })
+          : oembedOk({ title: "Came Through", thumbnail_url: "" });
+      },
+    });
+  }
+
+  it("retries a rate limit and returns the song", async () => {
+    vi.stubGlobal("fetch", flaky(429, 1));
+    expect((await fetchTrackMeta(TRACK)).title).toBe("Came Through");
+  });
+
+  it("retries a bad gateway and returns the song", async () => {
+    vi.stubGlobal("fetch", flaky(502, 1));
+    expect((await fetchTrackMeta(TRACK)).title).toBe("Came Through");
+  });
+
+  it("retries a socket that never opened", async () => {
+    let seen = 0;
+    vi.stubGlobal(
+      "fetch",
+      routeFetch({
+        oembed: () => {
+          seen += 1;
+          if (seen === 1) throw new TypeError("fetch failed");
+          return oembedOk({ title: "Second Time", thumbnail_url: "" });
+        },
+      }),
+    );
+
+    expect((await fetchTrackMeta(TRACK)).title).toBe("Second Time");
+  });
+
+  it("retries a 200 whose body is not json", async () => {
+    let seen = 0;
+    vi.stubGlobal(
+      "fetch",
+      routeFetch({
+        oembed: () => {
+          seen += 1;
+          return seen === 1
+            ? new Response("<html>gateway</html>", { status: 200 })
+            : oembedOk({ title: "Real Answer", thumbnail_url: "" });
+        },
+      }),
+    );
+
+    expect((await fetchTrackMeta(TRACK)).title).toBe("Real Answer");
+  });
+
+  it("gives up as unavailable, not as a bad link", async () => {
+    // The distinction the whole change turns on: two 503s mean Spotify is down,
+    // and the paster must not be told to fix a link that is fine.
+    vi.stubGlobal("fetch", flaky(503, 99));
+
+    const err = await fetchTrackMeta(TRACK).catch((e: unknown) => e);
+    expect(err).toBeInstanceOf(SpotifyUnavailableError);
+    expect(err).not.toBeInstanceOf(TrackNotFoundError);
+  });
+
+  it("does not retry a refusal", async () => {
+    // A 404 cannot become a 200, so a second ask would only make the payer wait.
+    const fetchMock = routeFetch({
+      oembed: () => new Response("not found", { status: 404 }),
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(fetchTrackMeta(TRACK)).rejects.toBeInstanceOf(
+      TrackNotFoundError,
+    );
+    expect(
+      fetchMock.mock.calls.filter(([u]) => String(u).includes("oembed")),
+    ).toHaveLength(1);
+  });
+
+  it("stops after one retry rather than hammering a checkout's latency", async () => {
+    const fetchMock = flaky(500, 99);
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(fetchTrackMeta(TRACK)).rejects.toBeInstanceOf(
+      SpotifyUnavailableError,
+    );
+    expect(
+      fetchMock.mock.calls.filter(([u]) => String(u).includes("oembed")),
+    ).toHaveLength(2);
   });
 });
 

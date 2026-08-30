@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { openRanks, rankOf } from "@/lib/ranks";
 import { parseSpotifyTrackId, spotifyTrackUrl } from "@/lib/spotify";
-import { fetchTrackMeta } from "@/lib/spotify-api";
+import { fetchTrackMeta, TrackNotFoundError } from "@/lib/spotify-api";
 import { readBoard } from "@/lib/tape-store";
 import { findSpotByTitle } from "@/lib/tape-rules";
 import type { BoardState } from "@/lib/types";
@@ -96,10 +96,20 @@ export async function GET(request: Request) {
       trackUrl: spotifyTrackUrl(trackId),
       ...tapeState(board, trackId),
     });
-  } catch {
+  } catch (err) {
+    // 404 for a link Spotify does not know, 503 for Spotify not answering. The
+    // cover-art recovery in cover-art.tsx only cares that it failed, but a
+    // person reading this answer is owed the difference: one of them means edit
+    // the link, the other means wait.
+    if (err instanceof TrackNotFoundError) {
+      return NextResponse.json(
+        { error: "Spotify has no track at that link." },
+        { status: 404 },
+      );
+    }
     return NextResponse.json(
-      { error: "Could not load that song." },
-      { status: 404 },
+      { error: "Spotify is not answering right now. Try again in a moment." },
+      { status: 503 },
     );
   }
 }

@@ -16,7 +16,7 @@ import {
   dodoConfigured,
 } from "./dodo";
 import { openRanks, parsePosition, priceForRank, rankOf } from "./ranks";
-import { fetchTrackMeta } from "./spotify-api";
+import { fetchTrackMeta, TrackNotFoundError } from "./spotify-api";
 import { parseSpotifyTrackId, spotifyTrackUrl } from "./spotify";
 import { applyPurchase, applyReversal } from "./tape-rules";
 import {
@@ -140,8 +140,23 @@ export async function startPurchase(
 
   // Title, artist and artwork are read here rather than accepted from the
   // browser, so a crafted request cannot put its own text on the tape.
-  const meta = await fetchTrackMeta(trackId).catch(() => {
-    throw new PurchaseError("Could not load that song from Spotify.", 502);
+  //
+  // Both failures refuse the sale, because a song this server cannot name must
+  // not go on the tape — but they are different refusals. A bad link is the
+  // payer's to fix; Spotify not answering is nobody's, and saying so is the
+  // difference between someone correcting a link and someone assuming the site
+  // is broken. Nothing has been charged either way: the checkout does not exist
+  // yet at this line.
+  const meta = await fetchTrackMeta(trackId).catch((err) => {
+    if (err instanceof TrackNotFoundError) {
+      throw new PurchaseError(
+        "Spotify has no track at that link. Check the link and try again.",
+      );
+    }
+    throw new PurchaseError(
+      "Spotify is not answering right now, so this song could not be read. Nothing has been charged — please try again in a moment.",
+      503,
+    );
   });
 
   const id = crypto.randomUUID();

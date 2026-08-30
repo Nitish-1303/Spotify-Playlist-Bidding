@@ -113,6 +113,57 @@ describe("startPurchase", () => {
     expect(checkoutCalls).toHaveLength(1);
   });
 
+  /* —— Nothing is charged for a song that cannot be read ——
+   *
+   * The lookup runs before createCheckout, so both refusals happen with no money
+   * involved at all. What matters is which of the two the payer is handed: one
+   * says fix your link, the other says try again shortly, and getting them the
+   * wrong way round sends somebody off to edit a link that was always fine.
+   */
+  function stubUnreadableSong(reply: () => Response) {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: RequestInfo | URL) => {
+        const url = String(input);
+        if (url.includes("open.spotify.com/oembed")) return reply();
+        if (url.includes("dodopayments.com")) {
+          throw new Error("no checkout may be opened for an unreadable song");
+        }
+        throw new Error(`unexpected fetch to ${url}`);
+      }),
+    );
+  }
+
+  it("refuses a link Spotify has no track for", async () => {
+    stubUnreadableSong(() => new Response("not found", { status: 404 }));
+
+    await expect(
+      startPurchase({ track: TRACK_URL, position: 1, origin: ORIGIN }),
+    ).rejects.toMatchObject({
+      name: "PurchaseError",
+      status: 400,
+      message: expect.stringContaining("no track at that link"),
+    });
+  });
+
+  it("says Spotify is not answering rather than blaming the link", async () => {
+    const errors = vi.spyOn(console, "error").mockImplementation(() => {});
+    stubUnreadableSong(() => new Response("busy", { status: 503 }));
+
+    await expect(
+      startPurchase({ track: TRACK_URL, position: 1, origin: ORIGIN }),
+    ).rejects.toMatchObject({
+      name: "PurchaseError",
+      // 503, not 502: the site is fine, its upstream is not, and the payer is
+      // being told to come back — which is only true if nothing was charged.
+      status: 503,
+      message: expect.stringContaining("Nothing has been charged"),
+    });
+
+    expect(await readBoard()).toMatchObject({ spots: expect.any(Array) });
+    errors.mockRestore();
+  });
+
   it("prices the slot itself and ignores any amount the caller sends", async () => {
     // Whatever a crafted request adds, the signature has nowhere to put it.
     const started = await startPurchase({

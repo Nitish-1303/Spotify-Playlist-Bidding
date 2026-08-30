@@ -14,6 +14,38 @@ export type SpotifyMeta = {
   thumbnailUrl: string;
 };
 
+/* —— Why there are two failures and not one ——
+ *
+ * A lookup can fail for two completely different reasons, and telling them
+ * apart is the difference between an honest refusal and a lost sale:
+ *
+ *   TrackNotFoundError    — Spotify says there is no track at that link. The
+ *                           paster made a mistake; retrying cannot fix it.
+ *   SpotifyUnavailableError — Spotify did not answer properly. The link may be
+ *                           perfectly good and the same request may work in a
+ *                           second. Nothing about it is the payer's fault.
+ *
+ * Before this distinction existed both came back as one error, and a single
+ * flaky response from a public endpoint we do not control read to the buyer as
+ * "Unable to start payment" on a link that was fine.
+ */
+
+/** Spotify has no track at that link. Permanent. */
+export class TrackNotFoundError extends Error {
+  constructor() {
+    super("Could not load that track. Paste a song link, not a playlist.");
+    this.name = "TrackNotFoundError";
+  }
+}
+
+/** Spotify did not answer. Transient — the same link may work shortly. */
+export class SpotifyUnavailableError extends Error {
+  constructor() {
+    super("Spotify did not answer. Please try again in a moment.");
+    this.name = "SpotifyUnavailableError";
+  }
+}
+
 /* —— Web API, client credentials ——
  *
  * oEmbed answers with a title and a cover and nothing else: there is no artist
@@ -207,25 +239,71 @@ async function fetchArtistFromEmbed(trackId: string): Promise<string> {
  * Also the arbiter of whether a link is a real track at all: this is the one
  * that turns a mistyped id into the message the payer reads, which is why it
  * throws where the other two return nothing.
+ *
+ * A refusal (404) is final and thrown at once — the link is wrong and a second
+ * ask would only be slower. Anything else, a rate limit or a bad gateway or a
+ * socket that never opened, is retried once after a short pause, because this
+ * endpoint is public, unauthenticated, shared by everyone on the platform's
+ * egress addresses, and occasionally just does not answer. One retry is the
+ * whole budget: a checkout is waiting on this, and a second failure is a real
+ * outage rather than a blip.
  */
+const OEMBED_ATTEMPTS = 2;
+const OEMBED_RETRY_MS = 250;
+
+const sleep = (ms: number) => new Promise((done) => setTimeout(done, ms));
+
 async function fetchFromOembed(trackId: string): Promise<SpotifyMeta> {
   const url = `https://open.spotify.com/oembed?url=${encodeURIComponent(spotifyTrackUrl(trackId))}`;
-  const res = await fetch(url);
-  if (!res.ok) {
-    throw new Error(
-      "Could not load that track. Paste a song link, not a playlist.",
-    );
+
+  // Why the last failure is carried rather than logged where it happens: a first
+  // attempt that fails and a second that succeeds is not an error, and should not
+  // read like one in the log.
+  let last = "";
+
+  for (let attempt = 1; attempt <= OEMBED_ATTEMPTS; attempt += 1) {
+    let res: Response;
+    try {
+      res = await fetch(url);
+    } catch (err) {
+      last = `unreachable: ${err instanceof Error ? err.message : String(err)}`;
+      if (attempt < OEMBED_ATTEMPTS) await sleep(OEMBED_RETRY_MS);
+      continue;
+    }
+
+    // 400 and 404 are both Spotify's way of saying "that is not a track of
+    // mine". Neither improves on a second ask.
+    if (res.status === 400 || res.status === 404) throw new TrackNotFoundError();
+
+    if (!res.ok) {
+      last = `HTTP ${res.status}`;
+      if (attempt < OEMBED_ATTEMPTS) await sleep(OEMBED_RETRY_MS);
+      continue;
+    }
+
+    try {
+      const data = (await res.json()) as {
+        title?: string;
+        author_name?: string;
+        thumbnail_url?: string;
+      };
+      return {
+        title: data.title?.trim() || "Unknown track",
+        artist: data.author_name?.trim() || "",
+        thumbnailUrl: data.thumbnail_url || "",
+      };
+    } catch (err) {
+      // A 200 carrying something that is not JSON is the shape of a captive
+      // portal or an error page, so it belongs with the transient failures.
+      last = `unreadable body: ${err instanceof Error ? err.message : String(err)}`;
+      if (attempt < OEMBED_ATTEMPTS) await sleep(OEMBED_RETRY_MS);
+    }
   }
-  const data = (await res.json()) as {
-    title?: string;
-    author_name?: string;
-    thumbnail_url?: string;
-  };
-  return {
-    title: data.title?.trim() || "Unknown track",
-    artist: data.author_name?.trim() || "",
-    thumbnailUrl: data.thumbnail_url || "",
-  };
+
+  console.error(
+    `[spotify] oembed unavailable after ${OEMBED_ATTEMPTS} attempts — ${last}`,
+  );
+  throw new SpotifyUnavailableError();
 }
 
 /**

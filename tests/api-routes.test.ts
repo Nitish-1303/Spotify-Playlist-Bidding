@@ -970,5 +970,39 @@ describe("GET /api/track", () => {
     const res = await GET(get("q=a"));
     expect(res.status).toBe(400);
   });
+
+  /** Replaces the suite's happy-path oEmbed with one that says no. */
+  function stubOembed(status: number) {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: RequestInfo | URL) => {
+        const url = String(input);
+        if (url.includes("/embed/track/")) return new Response("<html></html>");
+        if (url.includes("oembed")) return new Response("no", { status });
+        throw new Error(`unexpected fetch to ${url}`);
+      }),
+    );
+  }
+
+  it("answers 404 for a well-formed link with no track behind it", async () => {
+    stubOembed(404);
+    const { GET } = await import("@/app/api/track/route");
+
+    const res = await GET(get(`url=${encodeURIComponent(TRACK_URL)}`));
+    expect(res.status).toBe(404);
+    expect((await res.json()).error).toMatch(/no track at that link/);
+  });
+
+  it("answers 503 when Spotify is the thing that is broken", async () => {
+    // A 404 here would tell somebody to fix a link that is perfectly good.
+    const errors = vi.spyOn(console, "error").mockImplementation(() => {});
+    stubOembed(429);
+    const { GET } = await import("@/app/api/track/route");
+
+    const res = await GET(get(`url=${encodeURIComponent(TRACK_URL)}`));
+    expect(res.status).toBe(503);
+    expect((await res.json()).error).toMatch(/not answering right now/);
+    errors.mockRestore();
+  });
 });
 
