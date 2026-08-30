@@ -286,6 +286,31 @@ describe("fetchTrackMeta — oEmbed fallback", () => {
     expect(meta.title).toBe("From oEmbed");
   });
 
+  it("stops asking after a 403, which is about the app and not the track", async () => {
+    // Spotify answers 403 "Active premium subscription required for the owner
+    // of the app" to every catalogue read when the account behind the
+    // credentials is not Premium. Nothing about a second lookup changes that,
+    // so the second one must not spend a round trip discovering it again.
+    const fetchMock = routeFetch({
+      token: tokenOk,
+      track: () =>
+        new Response("Active premium subscription required", { status: 403 }),
+      oembed: () => oembedOk({ title: "From oEmbed", thumbnail_url: "" }),
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    expect((await fetchTrackMeta(TRACK)).title).toBe("From oEmbed");
+    expect((await fetchTrackMeta(TRACK)).title).toBe("From oEmbed");
+
+    const apiCalls = fetchMock.mock.calls.filter(([u]) =>
+      String(u).includes("api.spotify.com"),
+    );
+    expect(apiCalls).toHaveLength(1);
+    // And the refusal is visible rather than silent: without a log line an app
+    // whose credentials are refused looks exactly like one with none.
+    expect(errors).toHaveBeenCalledWith("[spotify] track lookup refused", 403);
+  });
+
   it("still refuses a link that is not a track", async () => {
     // oEmbed remains the arbiter: this is the error the payer reads.
     vi.stubGlobal(

@@ -35,6 +35,16 @@ const API_BASE = "https://api.spotify.com/v1";
 /** Cached per server instance. Spotify's tokens last an hour. */
 let cachedToken: { value: string; expiresAt: number } | null = null;
 
+/**
+ * A 403 from the catalogue is about the app, not the track: Spotify answers
+ * "Active premium subscription required for the owner of the app" to every
+ * /v1 read when the account that owns the credentials is not Premium. Retrying
+ * it per lookup would spend a round trip on a refusal that cannot change
+ * within the request, so it is parked for a while and oEmbed answers instead.
+ */
+let webApiBlockedUntil = 0;
+const WEB_API_COOLDOWN_MS = 10 * 60_000;
+
 function webApiConfigured() {
   return Boolean(
     process.env.SPOTIFY_CLIENT_ID && process.env.SPOTIFY_CLIENT_SECRET,
@@ -44,6 +54,7 @@ function webApiConfigured() {
 /** Drops the cached token. Exported for tests, which run several cases in one process. */
 export function resetSpotifyToken() {
   cachedToken = null;
+  webApiBlockedUntil = 0;
 }
 
 async function accessToken(): Promise<string | null> {
@@ -98,6 +109,8 @@ function pickCover(images: { url?: string; width?: number }[] | undefined) {
 }
 
 async function fetchFromWebApi(trackId: string): Promise<SpotifyMeta | null> {
+  if (Date.now() < webApiBlockedUntil) return null;
+
   const token = await accessToken();
   if (!token) return null;
 
@@ -110,6 +123,12 @@ async function fetchFromWebApi(trackId: string): Promise<SpotifyMeta | null> {
       // 401 means the cached token died early. Drop it so the next caller gets
       // a fresh one rather than repeating the same failure for the full hour.
       if (res.status === 401) cachedToken = null;
+      if (res.status === 403) webApiBlockedUntil = Date.now() + WEB_API_COOLDOWN_MS;
+      // Logged, because the fallback is silent by design: without this line an
+      // app whose credentials are refused for every track looks identical to
+      // one with no credentials at all — every song simply arrives with no
+      // artist and nothing says why.
+      console.error("[spotify] track lookup refused", res.status);
       return null;
     }
     const data = (await res.json()) as {
