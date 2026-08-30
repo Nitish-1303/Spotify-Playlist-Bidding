@@ -117,11 +117,12 @@ export default function Page() {
           </p>
           <p>
             The tape is kept on the server, so the running order you see is the
-            running order everyone sees. Visitor counts are measured server-side
-            from a random id your browser keeps — no IP addresses, cookies or
-            user agents. PlaylistBid is an independent fan project and is not
-            affiliated with, endorsed by, sponsored by, or connected to Spotify
-            AB.
+            running order everyone sees. The play and visitor counts printed
+            here are measured server-side from a random id your browser keeps —
+            no IP addresses, cookies or user agents. Traffic to the site is
+            counted separately by a cookieless third-party analytics script.
+            PlaylistBid is an independent fan project and is not affiliated
+            with, endorsed by, sponsored by, or connected to Spotify AB.
           </p>
         </div>
       </section>

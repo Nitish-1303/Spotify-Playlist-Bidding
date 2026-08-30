@@ -1,9 +1,11 @@
 import "./globals.css";
-import type { Metadata, Viewport } from "next";import { Analytics } from "@vercel/analytics/next";
+import type { Metadata, Viewport } from "next";
+import { Analytics } from "@vercel/analytics/next";
 import { Figtree } from "next/font/google";
 import { BoardProvider } from "@/lib/board-context";
 import { NowPlayingProvider } from "@/lib/now-playing";
 import { VisitorStatsProvider } from "@/lib/visitor-stats";
+import { DataFastAnalytics } from "@/components/datafast";
 import { MiniPlayer } from "@/components/mini-player";
 import {
   SITE_DESCRIPTION,
@@ -89,6 +91,7 @@ export default function RootLayout({
           </VisitorStatsProvider>
         </BoardProvider>
         <Analytics />
+        <DataFastAnalytics />
       </body>
     </html>
   );
