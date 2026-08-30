@@ -42,34 +42,16 @@ export function rankOf(spots: Spot[], trackId: string) {
   return index === -1 ? null : index + 1;
 }
 
-/** Side A is the first six; everything after is side B. */
-export function sideOf(rank: number) {
-  return rank <= 6 ? "A" : "B";
-}
-
-/** Position within its side, so labels read "SIDE B · TRACK 2". */
-export function trackOnSide(rank: number) {
-  return rank <= 6 ? rank : rank - 6;
-}
-
-/** How the wire names a position: rank 1 is "A1", rank 8 is "B2". */
-export function slotCode(rank: number) {
-  return `${sideOf(rank)}${trackOnSide(rank)}`;
-}
-
 /**
- * Reads a slot code back to a rank. Returns null for anything that is not a
- * side letter followed by a track number, so a hostile position is rejected
- * before it reaches the pricing code rather than being coerced to 1.
+ * Reads a track position off untrusted input. Positions are plain track numbers
+ * counted from the top of the tape: 1, 2, 3 and on down. Returns null for
+ * anything that is not a whole number of at least 1, so a hostile position is
+ * rejected before it reaches the pricing code rather than being coerced to 1.
  */
-export function parseSlotCode(input: unknown): number | null {
+export function parsePosition(input: unknown): number | null {
   if (typeof input === "number") {
     return Number.isInteger(input) && input >= 1 ? input : null;
   }
   if (typeof input !== "string") return null;
-  const match = input.trim().toUpperCase().match(/^([AB])([1-9][0-9]{0,2})$/);
-  if (!match) return null;
-  const track = Number(match[2]);
-  if (match[1] === "A") return track <= 6 ? track : null;
-  return track + 6;
+  return /^[1-9][0-9]{0,3}$/.test(input.trim()) ? Number(input.trim()) : null;
 }

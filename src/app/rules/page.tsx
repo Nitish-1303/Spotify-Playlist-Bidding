@@ -13,11 +13,11 @@ export const metadata: Metadata = {
 const CONDITIONS = [
   {
     head: "You buy a track position",
-    body: "Pick the slot you want — side A track 1, side B track 3 — and pay what it costs. The song lands on that slot, not on “whatever your money was worth”.",
+    body: "Pick the track you want — track 1, track 3, anywhere down the tape — and pay what it costs. The song lands on that slot, not on “whatever your money was worth”.",
   },
   {
     head: "A slot costs a dollar more than its holder",
-    body: "Whoever holds side A track 2 at $9 sets the price of side A track 2 at $10. The open end of the tape always costs $1.",
+    body: "Whoever holds track 2 at $9 sets the price of track 2 at $10. The open end of the tape always costs $1.",
   },
   {
     head: "Everything below shifts one track later",

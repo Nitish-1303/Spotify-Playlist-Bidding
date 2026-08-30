@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { chartOrder } from "@/lib/ranks";
-import { applyPlay, applyPurchase, rankMap } from "@/lib/tape-rules";
+import { applyPlay, applyPurchase, applyReversal, rankMap } from "@/lib/tape-rules";
 import type { BoardState, Spot } from "@/lib/types";
 
 /** Prices descending from $5, each written on an hour apart. */
@@ -186,6 +186,73 @@ describe("applyPlay", () => {
   it("leaves the tape alone for a song that is not on it", () => {
     const board = tape([5]);
     expect(applyPlay(board, "nope")).toBe(board);
+  });
+});
+
+describe("applyReversal", () => {
+  it("removes the song and closes the gap behind it", () => {
+    const board = tape([5, 4, 3]);
+    const result = applyReversal(board, { trackId: "t2", amount: 4 });
+
+    expect(result.removed).toBe(true);
+    expect(result.reason).toBeUndefined();
+    expect(result.board.spots.map((s) => s.trackId)).toEqual(["t1", "t3"]);
+    // t3 was third and is now second — the songs below move up, they do not
+    // leave a hole where the removed one was.
+    expect(rankMap(result.board.spots).s3).toBe(2);
+  });
+
+  it("records where everything stood before the removal", () => {
+    const board = tape([5, 4, 3]);
+    const result = applyReversal(board, { trackId: "t1", amount: 5 });
+
+    expect(result.board.prevRanks).toEqual({ s1: 1, s2: 2, s3: 3 });
+  });
+
+  it("leaves the activity feed alone", () => {
+    const board = tape([5, 4]);
+    board.activity = [
+      { id: "a1", trackId: "t2", title: "Song 2", artist: "Artist 2", bid: 4, at: 1 },
+    ];
+    const result = applyReversal(board, { trackId: "t2", amount: 4 });
+
+    expect(result.board.activity).toEqual(board.activity);
+  });
+
+  it("keeps the song when a larger payment is what holds the position", () => {
+    // $4 was paid once, then $6 lifted the same song. `applyPurchase` keeps the
+    // larger, so refunding the $4 must not move the tape.
+    const board = tape([6, 4]);
+    const result = applyReversal(board, { trackId: "t1", amount: 4 });
+
+    expect(result.removed).toBe(false);
+    expect(result.reason).toContain("$6");
+    expect(result.board).toBe(board);
+  });
+
+  it("does nothing for a song that is not on the tape", () => {
+    const board = tape([5]);
+    const result = applyReversal(board, { trackId: "gone", amount: 5 });
+
+    expect(result.removed).toBe(false);
+    expect(result.board).toBe(board);
+  });
+
+  it("is exactly applyPurchase run backwards", () => {
+    const board = tape([5, 4, 3]);
+    const bought = applyPurchase(
+      board,
+      { ...NEW_SONG, amount: 5, position: 2 },
+      board.spots[0].raisedAt + 1,
+      "s-fresh",
+    );
+    const reversed = applyReversal(bought.board, {
+      trackId: "fresh",
+      amount: 5,
+    });
+
+    expect(reversed.removed).toBe(true);
+    expect(reversed.board.spots).toEqual(board.spots);
   });
 });
 

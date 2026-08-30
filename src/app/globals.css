@@ -18,7 +18,7 @@
   --strip-up: #212127;   /* the same, hovered */
   --ink: #f5f5f6;        /* text */
   --chrome: #a7a7ae;     /* quiet metadata — 8.2:1 on the room */
-  --hammer: #22c55e;     /* our green — prices, the play button, side A */
+  --hammer: #22c55e;     /* our green — prices, the play button, track 1 */
   --hammer-dk: #16a34a;  /* the same, pressed */
   --on-hammer: #05140a;  /* text sitting on the green */
   --press: #7cb2ff;      /* blue — labels, links, the disclosure */
@@ -395,7 +395,7 @@ li.trow:hover .trow-no svg {
   text-decoration: underline;
 }
 
-/* Side A track 1 keeps the accent, the way a now-playing row would. */
+/* Track 1 keeps the accent, the way a now-playing row would. */
 .trow-lead .trow-title,
 .trow-lead .trow-no {
   color: var(--hammer);

@@ -73,7 +73,7 @@ describe("POST /api/payments/create-checkout", () => {
     const res = await POST(
       post("https://playlistbid.test/api/payments/create-checkout", {
         track: TRACK_URL,
-        position: "A1",
+        position: 1,
         // All of this is noise: the route reads track and position, nothing else.
         amount: 1,
         price: 1,
@@ -100,7 +100,7 @@ describe("POST /api/payments/create-checkout", () => {
     const res = await POST(
       post("https://playlistbid.test/api/payments/create-checkout", {
         track: TRACK_URL,
-        position: "A1",
+        position: 1,
       }),
     );
     const body = (await res.json()) as Record<string, unknown>;
@@ -112,13 +112,14 @@ describe("POST /api/payments/create-checkout", () => {
     expect(JSON.stringify(body)).not.toContain(tx?.ownerTokenHash);
   });
 
-  it("rejects a position that is not on the tape without calling Dodo", async () => {
+  it("rejects a position that is not a track number without calling Dodo", async () => {
     const { POST } = await import("@/app/api/payments/create-checkout/route");
     const before = await readBoard();
 
     const res = await POST(
       post("https://playlistbid.test/api/payments/create-checkout", {
         track: TRACK_URL,
+        // The old side-code form. Positions are plain track numbers now.
         position: "A99",
       }),
     );
@@ -140,7 +141,7 @@ describe("POST /api/payments/create-checkout", () => {
         paid: true,
         status: "SUCCESS",
         track: TRACK_URL,
-        position: "A1",
+        position: 1,
       }),
     );
 
@@ -168,7 +169,7 @@ describe("POST /api/payments/create-checkout", () => {
     const res = await POST(
       post("https://playlistbid.test/api/payments/create-checkout", {
         track: TRACK_URL,
-        position: "A1",
+        position: 1,
       }),
     );
 
@@ -201,7 +202,7 @@ describe("POST /api/payments/create-checkout", () => {
     const res = await POST(
       post("https://playlistbid.test/api/payments/create-checkout", {
         track: TRACK_URL,
-        position: "A1",
+        position: 1,
       }),
     );
 
@@ -286,12 +287,77 @@ function signed(body: string, key = WEBHOOK_KEY, id = "msg_1") {
 }
 
 /** Opens a real checkout, so the webhook has a PENDING transaction to settle. */
-async function openCheckout(position = "A1", track = TRACK_URL) {
+async function openCheckout(position: string | number = 1, track = TRACK_URL) {
   return startPurchase({
     track,
     position,
     origin: "https://playlistbid.test",
   });
+}
+
+/**
+ * A refund event. Note what it does not carry: our own transaction id. Dodo's
+ * refund object has a `metadata` field of its own, and the route is written not
+ * to depend on it holding the payment's, so it is left empty here — which is the
+ * unfavourable case, and the one that must still work.
+ */
+function refundPayload(type: string, paymentId = "pay_1", isPartial = false) {
+  return {
+    business_id: "biz_test",
+    type,
+    timestamp: new Date().toISOString(),
+    data: {
+      payload_type: "Refund",
+      brand_id: "brand_test",
+      business_id: "biz_test",
+      created_at: new Date().toISOString(),
+      customer: {
+        customer_id: "cus_test",
+        email: "buyer@test.invalid",
+        name: "Buyer",
+      },
+      is_partial: isPartial,
+      metadata: {},
+      payment_id: paymentId,
+      refund_id: "ref_1",
+      status: "succeeded",
+      amount: 1000,
+      currency: "USD",
+      reason: "requested_by_customer",
+    },
+  };
+}
+
+/** A dispute event. Carries no metadata field at all — only the payment id. */
+function disputePayload(
+  type: string,
+  disputeStatus: string,
+  paymentId = "pay_1",
+) {
+  return {
+    business_id: "biz_test",
+    type,
+    timestamp: new Date().toISOString(),
+    data: {
+      payload_type: "Dispute",
+      amount: "1000",
+      brand_id: "brand_test",
+      business_id: "biz_test",
+      created_at: new Date().toISOString(),
+      currency: "USD",
+      customer: {
+        customer_id: "cus_test",
+        email: "buyer@test.invalid",
+        name: "Buyer",
+      },
+      dispute_id: "dis_1",
+      dispute_stage: "dispute",
+      dispute_status: disputeStatus,
+      payment_id: paymentId,
+      payment_provider: "stripe",
+      remarks: "cardholder does not recognise the charge",
+    },
+  };
 }
 
 describe("POST /api/webhooks/dodo", () => {
@@ -439,6 +505,135 @@ describe("POST /api/webhooks/dodo", () => {
   });
 });
 
+/**
+ * The reversal half of the same route. These go through the real signature
+ * verification and the real payload schemas, so they check the wiring the unit
+ * tests cannot: that Dodo's handler names are the ones we registered, and that a
+ * payload carrying nothing but a payment id still finds its transaction.
+ */
+describe("POST /api/webhooks/dodo, reversals", () => {
+  beforeEach(() => {
+    process.env.DODO_PAYMENTS_WEBHOOK_KEY = WEBHOOK_KEY;
+  });
+
+  /** Buys the top slot for real, through the webhook, and returns the tape. */
+  async function settled() {
+    const started = await openCheckout();
+    const { POST } = await import("@/app/api/webhooks/dodo/route");
+    const body = JSON.stringify(
+      paymentPayload("payment.succeeded", started.transactionId),
+    );
+    expect((await POST(signed(body))).status).toBe(200);
+    expect(rankOf((await readBoard()).spots, TRACK)).toBe(1);
+    return { started, POST };
+  }
+
+  it("takes the song off the tape on refund.succeeded", async () => {
+    const before = (await readBoard()).spots.map((s) => s.trackId);
+    const { started, POST } = await settled();
+
+    const body = JSON.stringify(refundPayload("refund.succeeded"));
+    expect((await POST(signed(body, WEBHOOK_KEY, "msg_refund"))).status).toBe(200);
+
+    expect((await readBoard()).spots.map((s) => s.trackId)).toEqual(before);
+    expect((await getTransaction(started.transactionId))?.status).toBe("REFUNDED");
+  });
+
+  it("takes the song off the tape on dispute.lost", async () => {
+    const { started, POST } = await settled();
+
+    const body = JSON.stringify(disputePayload("dispute.lost", "dispute_lost"));
+    expect((await POST(signed(body, WEBHOOK_KEY, "msg_dispute"))).status).toBe(200);
+
+    expect(rankOf((await readBoard()).spots, TRACK)).toBeNull();
+    expect((await getTransaction(started.transactionId))?.status).toBe("CHARGEBACK");
+  });
+
+  it("takes the song off the tape on dispute.accepted", async () => {
+    // Dodo: "The dispute was accepted (not contested). The funds are returned to
+    // the cardholder." Same outcome as losing one.
+    const { started, POST } = await settled();
+
+    const body = JSON.stringify(
+      disputePayload("dispute.accepted", "dispute_accepted"),
+    );
+    expect((await POST(signed(body, WEBHOOK_KEY, "msg_accepted"))).status).toBe(200);
+
+    expect(rankOf((await readBoard()).spots, TRACK)).toBeNull();
+    expect((await getTransaction(started.transactionId))?.status).toBe("CHARGEBACK");
+  });
+
+  it("keeps the song on the tape for a partial refund", async () => {
+    const { started, POST } = await settled();
+    const held = await readBoard();
+
+    const body = JSON.stringify(refundPayload("refund.succeeded", "pay_1", true));
+    expect((await POST(signed(body, WEBHOOK_KEY, "msg_partial"))).status).toBe(200);
+
+    expect((await readBoard()).spots).toEqual(held.spots);
+    expect(rankOf((await readBoard()).spots, TRACK)).toBe(1);
+    expect((await getTransaction(started.transactionId))?.status).toBe("REFUNDED");
+  });
+
+  it.each([
+    ["dispute.opened", "dispute_opened"],
+    ["dispute.won", "dispute_won"],
+    ["dispute.expired", "dispute_expired"],
+  ])("leaves the tape alone on %s", async (type, status) => {
+    const { started, POST } = await settled();
+    const held = await readBoard();
+
+    const body = JSON.stringify(disputePayload(type, status));
+    expect((await POST(signed(body, WEBHOOK_KEY, `msg_${status}`))).status).toBe(200);
+
+    // Funds are only held while a dispute is open, and a won one is kept. Pulling
+    // a song off on suspicion would punish a buyer who is about to be vindicated.
+    expect((await readBoard()).spots).toEqual(held.spots);
+    expect(rankOf((await readBoard()).spots, TRACK)).toBe(1);
+    expect((await getTransaction(started.transactionId))?.status).toBe("SUCCESS");
+  });
+
+  it("moves the tape once when a refund is redelivered", async () => {
+    const { POST } = await settled();
+    const body = JSON.stringify(refundPayload("refund.succeeded"));
+
+    expect((await POST(signed(body, WEBHOOK_KEY, "msg_a"))).status).toBe(200);
+    const afterFirst = await readBoard();
+
+    // A fresh delivery id, so it is the payment-and-event claim that has to hold.
+    expect((await POST(signed(body, WEBHOOK_KEY, "msg_b"))).status).toBe(200);
+
+    expect((await readBoard()).spots).toEqual(afterFirst.spots);
+  });
+
+  it("ignores a refund for a payment it never took", async () => {
+    const before = await readBoard();
+    const { POST } = await import("@/app/api/webhooks/dodo/route");
+
+    const body = JSON.stringify(refundPayload("refund.succeeded", "pay_elsewhere"));
+    // Accepted rather than argued with, same as any other unknown event.
+    expect((await POST(signed(body))).status).toBe(200);
+    expect((await readBoard()).spots).toEqual(before.spots);
+  });
+
+  it("rejects an unsigned refund and leaves the tape alone", async () => {
+    const { started } = await settled();
+    const held = await readBoard();
+    const { POST } = await import("@/app/api/webhooks/dodo/route");
+
+    const res = await POST(
+      post(
+        "https://playlistbid.test/api/webhooks/dodo",
+        refundPayload("refund.succeeded"),
+      ),
+    );
+
+    expect(res.status).toBe(401);
+    expect((await readBoard()).spots).toEqual(held.spots);
+    expect((await getTransaction(started.transactionId))?.status).toBe("SUCCESS");
+  });
+});
+
 /* —— the buyer's own receipt —— */
 
 /** The route takes its params as a promise, the way Next 15 hands them over. */
@@ -461,7 +656,7 @@ describe("GET /api/payments/[transactionId]", () => {
     expect(res.status).toBe(200);
     expect(res.headers.get("Cache-Control")).toBe("no-store");
     const body = (await res.json()) as Record<string, unknown>;
-    expect(body).toMatchObject({ status: "PENDING", position: "A1", amount: 10 });
+    expect(body).toMatchObject({ status: "PENDING", position: 1, amount: 10 });
 
     const text = JSON.stringify(body);
     for (const secret of [
@@ -531,8 +726,8 @@ describe("GET /api/payments/[transactionId]", () => {
   });
 
   it("does not let one buyer read another buyer's payment", async () => {
-    const mine = await openCheckout("A1");
-    const theirs = await openCheckout("A2", `https://open.spotify.com/track/${OTHER}`);
+    const mine = await openCheckout(1);
+    const theirs = await openCheckout(2, `https://open.spotify.com/track/${OTHER}`);
     const { GET } = await import("@/app/api/payments/[transactionId]/route");
 
     const res = await GET(
@@ -632,7 +827,7 @@ describe("POST /api/board/play", () => {
 
   it.each([
     ["a bid smuggled alongside the play", { bid: 999 }],
-    ["a position", { position: "A1" }],
+    ["a position", { position: 1 }],
     ["a payment claim", { paid: true, status: "SUCCESS" }],
   ])("ignores %s", async (_label, extra) => {
     const { POST } = await import("@/app/api/board/play/route");

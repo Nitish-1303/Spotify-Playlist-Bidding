@@ -36,13 +36,20 @@ export type BoardState = {
  * Where a payment has got to. PlaylistBid keeps its own state machine because
  * Dodo is an external system: the tape may only move on SUCCESS, and SUCCESS is
  * only ever set by a signature-verified webhook.
+ *
+ * REFUNDED and CHARGEBACK are the two ways a settled payment comes undone. They
+ * are separate statuses rather than one "REVERSED" because they are not the same
+ * event to the person running the site: a refund is something we chose to give,
+ * a chargeback is something a card network took. Both are terminal.
  */
 export type PaymentStatus =
   | "PENDING"
   | "PROCESSING"
   | "SUCCESS"
   | "FAILED"
-  | "CANCELLED";
+  | "CANCELLED"
+  | "REFUNDED"
+  | "CHARGEBACK";
 
 /**
  * A purchase attempt. `amount` is computed on the server from `position` at the
@@ -71,6 +78,8 @@ export type PaymentTransaction = {
   createdAt: number;
   updatedAt: number;
   completedAt?: number;
+  /** When the money went back, on a refund or a lost dispute. */
+  reversedAt?: number;
   /** Where the song actually ended up once the payment was finalised. */
   landedPosition?: number;
   /** Set when a finalised payment could not take the position asked for. */

@@ -88,9 +88,34 @@ sends can move the tape.
 | `SUCCESS` | Payment confirmed and the tape has moved. Terminal. |
 | `FAILED` | Payment failed. The tape is untouched. Terminal. |
 | `CANCELLED` | Buyer abandoned the checkout. The tape is untouched. Terminal. |
+| `REFUNDED` | The money was returned. The song comes off the tape. Terminal. |
+| `CHARGEBACK` | A dispute went the cardholder's way. Same as a refund. Terminal. |
 
 A transaction never walks backwards out of `SUCCESS`: a late `payment.failed`
-for a payment that already settled is recorded as already-final and ignored.
+for a payment that already settled is recorded as already-final and ignored. The
+two reversal states are final the same way, so a stray `payment.processing` can
+never put a refunded payment back on its feet.
+
+### When money goes back
+
+`refund.succeeded`, `dispute.lost` and `dispute.accepted` are the three events
+where Dodo says the funds have reached the cardholder, and each one runs the
+purchase backwards. A position is not stored anywhere — it is read off the order —
+so removing the song closes the gap by itself and every song below it moves up
+one, the mirror of what buying does.
+
+Two cases deliberately leave the tape alone, and both are logged:
+
+- **A partial refund.** Part of the price came back, which is a judgement about
+  whether the sale stands. It is recorded and left to a person.
+- **A larger payment holds the position.** A song can be paid for more than once,
+  and it is the largest payment that ranks it. If the reversed one is not that
+  payment, removing the song would take the slot from someone who has not been
+  refunded.
+
+`dispute.opened` is not a reversal. Funds are only held at that stage and the
+dispute can still be won, so it is logged loudly and nothing more — a song pulled
+off on suspicion cannot be handed its position back once the tape has moved on.
 
 ### Idempotency and races
 
@@ -179,14 +204,18 @@ Copy the product id into `DODO_PAYMENTS_PRODUCT_ID`.
 https://playlistbid.vercel.app/api/webhooks/dodo
 ```
 
-Subscribe it to these four events — the first is what moves the tape, the other
-three keep the buyer's receipt honest:
+Subscribe it to these events. The first is what moves the tape, the next three
+keep the buyer's receipt honest, and the last three take a song back off when the
+money goes back — without them a refunded buyer keeps their slot:
 
 ```
 payment.succeeded
 payment.failed
 payment.cancelled
 payment.processing
+refund.succeeded
+dispute.lost
+dispute.accepted
 ```
 
 Copy that endpoint's signing secret (`whsec_…`) into

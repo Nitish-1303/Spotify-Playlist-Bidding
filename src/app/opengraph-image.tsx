@@ -125,7 +125,7 @@ export default function OpenGraphImage() {
               fontWeight: 800,
             }}
           >
-            A1
+            01
           </div>
           <div
             style={{
@@ -138,7 +138,7 @@ export default function OpenGraphImage() {
           >
             <div style={{ display: "flex", flexDirection: "column" }}>
               <div style={{ fontSize: 30, fontWeight: 700 }}>
-                Buy side A · track 1 and the song lands there
+                Buy track 1 and the song lands there
               </div>
               <div
                 style={{

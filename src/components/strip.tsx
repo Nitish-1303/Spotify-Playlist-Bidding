@@ -4,7 +4,6 @@ import { CoverArt } from "@/components/cover-art";
 import { TimeAgo } from "@/components/time-ago";
 import { formatInt, formatUsd } from "@/lib/format";
 import { useNowPlaying } from "@/lib/now-playing";
-import { sideOf, trackOnSide } from "@/lib/ranks";
 import type { Spot } from "@/lib/types";
 
 /** The one glyph this interface needs: play. */
@@ -75,7 +74,7 @@ export function TapeHeader({
         />
         <div className="min-w-0">
           <p className="plist-kind">
-            side a · track 1 · opens the tape
+            track 1 · opens the tape
           </p>
           <h2 id="block-title" className="plist-name break-words">
             {spot.title}
@@ -113,7 +112,7 @@ export function TapeHeader({
           className="btn btn-hammer btn-lg"
           onClick={() => onTake(1)}
         >
-          Take side A · track 1 · {formatUsd(next, 0)}
+          Take track 1 · {formatUsd(next, 0)}
         </button>
         <p className="text-xs chrome">
           {runnerUp > 0
@@ -167,10 +166,7 @@ export function TrackRow({ spot, rank, move, onTake, onOpen }: TrackRowProps) {
         aria-label={`Play ${spot.title}`}
         title={`Play ${spot.title}`}
       >
-        <span>
-          {sideOf(rank)}
-          {trackOnSide(rank)}
-        </span>
+        <span>{rank}</span>
         <PlayGlyph />
       </button>
 
@@ -215,7 +211,7 @@ export function TrackRow({ spot, rank, move, onTake, onOpen }: TrackRowProps) {
           type="button"
           className="btn btn-sm"
           onClick={() => onTake(rank)}
-          title={`Buy side ${sideOf(rank)} · track ${trackOnSide(rank)}`}
+          title={`Buy track ${rank}`}
         >
           Take · {formatUsd(spot.bid + 1, 0)}
         </button>

@@ -123,3 +123,65 @@ export function applyPlay(board: BoardState, trackId: string): BoardState {
     ),
   };
 }
+
+export type ReversalInput = {
+  trackId: string;
+  /** Whole dollars being taken back — the amount of the reversed payment. */
+  amount: number;
+};
+
+export type ReversalResult = {
+  board: BoardState;
+  /** True when the song came off the tape. */
+  removed: boolean;
+  /** Why the tape was left alone, when it was. For the log, not the buyer. */
+  reason?: string;
+};
+
+/**
+ * Takes a paid song back off the tape when its money goes back.
+ *
+ * `applyPurchase` run backwards, and the mirror of what a purchase does: a
+ * position is not stored anywhere, it is read off the order, so removing the
+ * spot closes the gap by itself and every song below it moves up one.
+ *
+ * The one thing this has to get right is that a song can have been paid for more
+ * than once. `applyPurchase` keeps `Math.max(existing.bid, input.amount)`, so the
+ * price holding a song is the largest payment made for it, not the latest. That
+ * gives the test for whether this reversal is the one that owns the position:
+ *
+ *   bid equal to the reversed amount — this payment is what holds the song
+ *     there, so the song comes off.
+ *   bid above it — a larger payment holds the position, and that payer has not
+ *     been refunded. Removing the song would take the slot from the wrong
+ *     person, so the tape does not move.
+ *   song not on the tape — already reversed, or never applied. Nothing to do.
+ *
+ * The refusal case is deliberate rather than a gap: an unrefunded payer keeping
+ * a slot they paid for is correct, and the operator can see it in the log.
+ */
+export function applyReversal(
+  board: BoardState,
+  input: ReversalInput,
+): ReversalResult {
+  const spot = board.spots.find((s) => s.trackId === input.trackId);
+  if (!spot) {
+    return { board, removed: false, reason: "the song is not on the tape" };
+  }
+  if (spot.bid > input.amount) {
+    return {
+      board,
+      removed: false,
+      reason: `a larger payment of $${spot.bid} holds that position`,
+    };
+  }
+
+  // Read before the removal, so the ▲ column shows the songs that moved up.
+  const prevRanks = rankMap(board.spots);
+  const spots = chartOrder(board.spots.filter((s) => s.trackId !== input.trackId));
+
+  // The activity feed is left alone. Every entry in it renders as a song and a
+  // price, so a removal has no honest shape there — and the entry for the
+  // payment being reversed is a record of something that did happen.
+  return { board: { spots, activity: board.activity, prevRanks }, removed: true };
+}

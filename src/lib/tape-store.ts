@@ -36,6 +36,12 @@ const PLAY_DEDUPE_TTL = 60 * 60;
 const txKey = (id: string) => `pb:tx:${id}`;
 const eventKey = (id: string) => `pb:evt:${id}`;
 const settledKey = (id: string) => `pb:settled:${id}`;
+/**
+ * Provider payment id → our transaction id. Refund and dispute payloads carry
+ * only Dodo's payment id, never the metadata our checkout wrote, so without this
+ * there is no way back to the transaction a reversal belongs to.
+ */
+const payKey = (providerPaymentId: string) => `pb:pay:${providerPaymentId}`;
 const playKey = (visitorId: string, trackId: string) =>
   `pb:play:${visitorId}:${trackId}`;
 
@@ -135,6 +141,7 @@ type MemStore = {
   transactions: Map<string, PaymentTransaction>;
   events: Set<string>;
   settled: Set<string>;
+  payments: Map<string, string>;
   plays: Map<string, number>;
 };
 
@@ -148,6 +155,7 @@ function mem(): MemStore {
     transactions: new Map(),
     events: new Set(),
     settled: new Set(),
+    payments: new Map(),
     plays: new Map(),
   });
 }
@@ -306,6 +314,44 @@ export async function putTransaction(tx: PaymentTransaction) {
     return;
   }
   await pipeline([["SET", txKey(tx.id), JSON.stringify(tx), "EX", TX_TTL]]);
+}
+
+/**
+ * Records which transaction a Dodo payment id belongs to.
+ *
+ * A pure lookup aid, so it is written outside the atomic commit: writing it
+ * twice, or writing it for a commit that then turned out to be a redelivery, is
+ * harmless — it points at the same transaction either way. It is written before
+ * the commit rather than after, so a refund arriving on the heels of its own
+ * payment can still be resolved.
+ */
+export async function linkProviderPayment(
+  providerPaymentId: string,
+  transactionId: string,
+) {
+  if (!providerPaymentId) return;
+  if (!boardIsDurable()) {
+    mem().payments.set(providerPaymentId, transactionId);
+    return;
+  }
+  await pipeline([
+    ["SET", payKey(providerPaymentId), transactionId, "EX", TX_TTL],
+  ]);
+}
+
+/** The transaction a Dodo payment id belongs to, or null if we never saw it. */
+export async function findTransactionByProviderPayment(
+  providerPaymentId: string,
+): Promise<PaymentTransaction | null> {
+  if (!providerPaymentId) return null;
+  if (!boardIsDurable()) {
+    const id = mem().payments.get(providerPaymentId);
+    return id ? (mem().transactions.get(id) ?? null) : null;
+  }
+  const [rawId] = await pipeline([["GET", payKey(providerPaymentId)]]);
+  if (typeof rawId !== "string" || !rawId) return null;
+  const [raw] = await pipeline([["GET", txKey(rawId)]]);
+  return parseTransaction(raw);
 }
 
 /**

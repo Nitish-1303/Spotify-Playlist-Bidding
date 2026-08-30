@@ -10,15 +10,7 @@ import {
   savePaymentHandle,
   startCheckout,
 } from "@/lib/payments";
-import {
-  chartOrder,
-  openRanks,
-  priceForRank,
-  rankOf,
-  sideOf,
-  slotCode,
-  trackOnSide,
-} from "@/lib/ranks";
+import { chartOrder, openRanks, priceForRank, rankOf } from "@/lib/ranks";
 import { PAYMENT_PROVIDER } from "@/lib/site";
 import { parseSpotifyTrackId } from "@/lib/spotify";
 
@@ -30,9 +22,9 @@ type BidTicketProps = {
   formRef?: React.RefObject<HTMLFormElement | null>;
 };
 
-/** "side a · track 3" — how every position is named on this site. */
+/** "track 3" — how every position is named on this site. */
 export function slotLabel(rank: number) {
-  return `side ${sideOf(rank)} · track ${trackOnSide(rank)}`;
+  return `track ${rank}`;
 }
 
 /**
@@ -88,14 +80,14 @@ export function BidTicket({
       return;
     }
     if (stuck) {
-      setStatus("That song already holds side A · track 1. Nothing above it.");
+      setStatus("That song already holds track 1. Nothing above it.");
       return;
     }
 
     setBusy(true);
     setStatus(null);
     try {
-      const started = await startCheckout({ track: url, position: slotCode(rank) });
+      const started = await startCheckout({ track: url, position: rank });
 
       // Kept so the receipt page can ask the backend how the payment went. It
       // is not proof of anything by itself.
@@ -154,8 +146,7 @@ export function BidTicket({
 
           {stuck ? (
             <p className="notice text-sm">
-              This song already holds side A · track 1. There is nothing above it
-              to buy.
+              This song already holds track 1. There is nothing above it to buy.
             </p>
           ) : (
             <div
@@ -175,9 +166,7 @@ export function BidTicket({
                     onClick={() => setTargetRank(r)}
                     className={`slot ${r === rank ? "slot-on" : ""}`}
                   >
-                    <span className="slot-no">
-                      {sideOf(r)}&nbsp;·&nbsp;{trackOnSide(r)}
-                    </span>
+                    <span className="slot-no">track&nbsp;{r}</span>
                     <span className="slot-holder">
                       {holder ? (
                         <>

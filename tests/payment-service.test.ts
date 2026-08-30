@@ -16,6 +16,7 @@ import {
   mapProviderStatus,
   PurchaseError,
   readOwnTransaction,
+  reversePayment,
   startPurchase,
 } from "@/lib/payment-service";
 import { rankOf } from "@/lib/ranks";
@@ -89,7 +90,7 @@ describe("startPurchase", () => {
   it("opens a checkout and records a PENDING transaction", async () => {
     const started = await startPurchase({
       track: TRACK_URL,
-      position: "A1",
+      position: 1,
       origin: ORIGIN,
     });
 
@@ -116,7 +117,7 @@ describe("startPurchase", () => {
     // Whatever a crafted request adds, the signature has nowhere to put it.
     const started = await startPurchase({
       track: TRACK_URL,
-      position: "A1",
+      position: 1,
       origin: ORIGIN,
       // @ts-expect-error deliberately passing a field the type does not have
       amount: 1,
@@ -129,7 +130,7 @@ describe("startPurchase", () => {
   it("reads the song's own title and artist rather than trusting the caller", async () => {
     const started = await startPurchase({
       track: TRACK_URL,
-      position: "A1",
+      position: 1,
       origin: ORIGIN,
       // @ts-expect-error deliberately passing fields the type does not have
       title: "Free Slot",
@@ -144,7 +145,7 @@ describe("startPurchase", () => {
   it("writes its own checkout metadata", async () => {
     const started = await startPurchase({
       track: TRACK_URL,
-      position: "A2",
+      position: 2,
       origin: ORIGIN,
     });
 
@@ -158,7 +159,9 @@ describe("startPurchase", () => {
     );
   });
 
-  it.each(["Z9", "A0", "A7", "C1", "1; DROP TABLE", "", null, {}, -3, 1.5])(
+  // Positions are plain track numbers now, so the old side codes are refused
+  // alongside everything else that is not a whole number of at least 1.
+  it.each(["A1", "B2", "1abc", "1; DROP TABLE", "", null, {}, -3, 0, 1.5])(
     "refuses %o as a position without touching Dodo",
     async (position) => {
       await expect(
@@ -171,7 +174,7 @@ describe("startPurchase", () => {
   it("refuses a position past the end of the tape", async () => {
     // 12 songs on the seed tape, so 13 is the last buyable slot.
     await expect(
-      startPurchase({ track: TRACK_URL, position: "B9", origin: ORIGIN }),
+      startPurchase({ track: TRACK_URL, position: 15, origin: ORIGIN }),
     ).rejects.toThrow(/not on the tape/);
     expect(checkoutCalls).toHaveLength(0);
   });
@@ -180,7 +183,7 @@ describe("startPurchase", () => {
     await expect(
       startPurchase({
         track: "https://open.spotify.com/playlist/37i9dQZF1DXcBWIGoYBM5M",
-        position: "A1",
+        position: 1,
         origin: ORIGIN,
       }),
     ).rejects.toThrow(/not a song link/);
@@ -194,7 +197,7 @@ describe("startPurchase", () => {
     await expect(
       startPurchase({
         track: seated.trackUrl,
-        position: "A6",
+        position: 6,
         origin: ORIGIN,
       }),
     ).rejects.toThrow(/already sits/);
@@ -203,7 +206,7 @@ describe("startPurchase", () => {
 });
 
 /** Starts a checkout the way the route would, and hands back its handle. */
-async function pending(track = TRACK_URL, position: string | number = "A1") {
+async function pending(track = TRACK_URL, position: string | number = 1) {
   return startPurchase({ track, position, origin: ORIGIN });
 }
 
@@ -235,7 +238,7 @@ describe("finalizePayment", () => {
 
   it("shifts the songs below the bought slot one track later", async () => {
     const before = (await readBoard()).spots.map((s) => s.trackId);
-    const started = await pending(TRACK_URL, "A3");
+    const started = await pending(TRACK_URL, 3);
 
     await finalizePayment({
       eventId: "pay_1:payment.succeeded",
@@ -271,7 +274,7 @@ describe("finalizePayment", () => {
 
   it("treats a redelivery racing a fresh transaction as a duplicate", async () => {
     const first = await pending();
-    const second = await pending(`https://open.spotify.com/track/${OTHER}`, "A1");
+    const second = await pending(`https://open.spotify.com/track/${OTHER}`, 1);
 
     await finalizePayment({
       eventId: "shared-event-id",
@@ -424,7 +427,7 @@ describe("finalizePayment", () => {
     const seated = board.spots[4];
     const second = await startPurchase({
       track: seated.trackUrl,
-      position: "A1",
+      position: 1,
       origin: ORIGIN,
     });
     await finalizePayment({
@@ -442,8 +445,8 @@ describe("finalizePayment", () => {
   });
 
   it("keeps the tape consistent when two payments settle at once", async () => {
-    const a = await pending(TRACK_URL, "A1");
-    const b = await pending(`https://open.spotify.com/track/${OTHER}`, "A1");
+    const a = await pending(TRACK_URL, 1);
+    const b = await pending(`https://open.spotify.com/track/${OTHER}`, 1);
 
     await Promise.all([
       finalizePayment({
@@ -501,7 +504,7 @@ describe("readOwnTransaction", () => {
 
     expect(view).toMatchObject({
       status: "PENDING",
-      position: "A1",
+      position: 1,
       title: "Real Title",
       amount: 10,
       currency: "USD",
@@ -533,7 +536,7 @@ describe("readOwnTransaction", () => {
 
   it("does not let one buyer read another buyer's payment", async () => {
     const mine = await pending();
-    const theirs = await pending(`https://open.spotify.com/track/${OTHER}`, "A2");
+    const theirs = await pending(`https://open.spotify.com/track/${OTHER}`, 2);
 
     expect(await readOwnTransaction(theirs.transactionId, mine.ownerToken)).toBeNull();
   });
@@ -641,6 +644,243 @@ describe("finalizePayment guards the amount", () => {
 
     expect(outcome).toBe("recorded");
     expect((await getTransaction(started.transactionId))?.status).toBe("FAILED");
+  });
+});
+
+/** Buys a slot outright: checkout, then the succeeded webhook. */
+async function bought(
+  paymentId: string,
+  track = TRACK_URL,
+  position: string | number = 1,
+) {
+  const started = await startPurchase({ track, position, origin: ORIGIN });
+  const outcome = await finalizePayment({
+    eventId: `${paymentId}:payment.succeeded`,
+    transactionId: started.transactionId,
+    providerPaymentId: paymentId,
+    status: "SUCCESS",
+  });
+  expect(outcome).toBe("finalized");
+  return started;
+}
+
+/**
+ * Money going back has to take the slot with it, or a refunded buyer keeps a
+ * position they were paid to give up. A refund and a lost dispute both mean the
+ * cardholder has the money, per Dodo's own description of those events, so both
+ * run the purchase backwards.
+ */
+describe("reversePayment", () => {
+  it("takes the song off the tape when the payment is refunded", async () => {
+    const before = (await readBoard()).spots.map((s) => s.trackId);
+    const started = await bought("pay_1");
+    expect(rankOf((await readBoard()).spots, TRACK)).toBe(1);
+
+    const outcome = await reversePayment({
+      eventId: "pay_1:refund.succeeded",
+      providerPaymentId: "pay_1",
+      kind: "refund",
+    });
+
+    expect(outcome).toBe("reversed");
+
+    // The gap closes by itself: positions are read off the order, so everything
+    // below the removed song moves up one and the tape is as it started.
+    const after = (await readBoard()).spots.map((s) => s.trackId);
+    expect(after).toEqual(before);
+    expect(rankOf((await readBoard()).spots, TRACK)).toBeNull();
+
+    const tx = await getTransaction(started.transactionId);
+    expect(tx?.status).toBe("REFUNDED");
+    expect(tx?.reversedAt).toBeTypeOf("number");
+    expect(tx?.note).toContain("refunded");
+  });
+
+  it("shifts the songs below the removed slot one track earlier", async () => {
+    const before = (await readBoard()).spots.map((s) => s.trackId);
+    await bought("pay_1", TRACK_URL, 3);
+    const mid = (await readBoard()).spots.map((s) => s.trackId);
+    expect(mid[2]).toBe(TRACK);
+
+    await reversePayment({
+      eventId: "pay_1:refund.succeeded",
+      providerPaymentId: "pay_1",
+      kind: "refund",
+    });
+
+    expect((await readBoard()).spots.map((s) => s.trackId)).toEqual(before);
+  });
+
+  it("records a chargeback under its own status", async () => {
+    const started = await bought("pay_1");
+
+    const outcome = await reversePayment({
+      eventId: "pay_1:dispute.lost",
+      providerPaymentId: "pay_1",
+      kind: "chargeback",
+      reason: "fraudulent",
+    });
+
+    expect(outcome).toBe("reversed");
+    expect(rankOf((await readBoard()).spots, TRACK)).toBeNull();
+
+    const tx = await getTransaction(started.transactionId);
+    expect(tx?.status).toBe("CHARGEBACK");
+    expect(tx?.note).toContain("charged back");
+  });
+
+  it("finds the transaction from the payment id alone", async () => {
+    // Refund and dispute payloads do not carry our checkout metadata, so this is
+    // the path every real reversal takes.
+    await bought("pay_xyz");
+
+    const outcome = await reversePayment({
+      eventId: "pay_xyz:refund.succeeded",
+      providerPaymentId: "pay_xyz",
+      kind: "refund",
+    });
+
+    expect(outcome).toBe("reversed");
+  });
+
+  it("refuses a payment id it has no record of", async () => {
+    const before = await readBoard();
+
+    const outcome = await reversePayment({
+      eventId: "pay_someone_else:refund.succeeded",
+      providerPaymentId: "pay_someone_else",
+      kind: "refund",
+    });
+
+    expect(outcome).toBe("unknown-transaction");
+    expect((await readBoard()).spots).toEqual(before.spots);
+  });
+
+  it("moves the tape once when the same reversal is delivered twice", async () => {
+    await bought("pay_1");
+    const event = {
+      eventId: "pay_1:refund.succeeded",
+      providerPaymentId: "pay_1",
+      kind: "refund" as const,
+    };
+
+    expect(await reversePayment(event)).toBe("reversed");
+    const afterFirst = await readBoard();
+
+    expect(await reversePayment(event)).toBe("duplicate");
+    expect((await readBoard()).spots).toEqual(afterFirst.spots);
+  });
+
+  it("ignores a lost dispute on a payment already refunded", async () => {
+    const started = await bought("pay_1");
+
+    await reversePayment({
+      eventId: "pay_1:refund.succeeded",
+      providerPaymentId: "pay_1",
+      kind: "refund",
+    });
+    const afterRefund = await readBoard();
+
+    // Different delivery id, so the event claim does not catch it. The status
+    // does: the money has already gone back once.
+    const outcome = await reversePayment({
+      eventId: "pay_1:dispute.lost",
+      providerPaymentId: "pay_1",
+      kind: "chargeback",
+    });
+
+    expect(outcome).toBe("duplicate");
+    expect((await readBoard()).spots).toEqual(afterRefund.spots);
+    expect((await getTransaction(started.transactionId))?.status).toBe("REFUNDED");
+  });
+
+  it("leaves the song alone on a partial refund", async () => {
+    const started = await bought("pay_1");
+    const before = await readBoard();
+
+    const outcome = await reversePayment({
+      eventId: "pay_1:refund.succeeded",
+      providerPaymentId: "pay_1",
+      kind: "refund",
+      partial: true,
+    });
+
+    expect(outcome).toBe("recorded");
+    expect((await readBoard()).spots).toEqual(before.spots);
+    expect(rankOf((await readBoard()).spots, TRACK)).toBe(1);
+
+    const tx = await getTransaction(started.transactionId);
+    expect(tx?.status).toBe("REFUNDED");
+    expect(tx?.note).toContain("still on the tape");
+  });
+
+  it("does not take a slot from a larger payment for the same song", async () => {
+    // The song is bought onto A3, then lifted to A1 for more money. `applyPurchase`
+    // keeps the larger of the two, so it is the second payment that holds it.
+    const small = await bought("pay_small", TRACK_URL, 3);
+    const big = await bought("pay_big", TRACK_URL, 1);
+    expect(big.amount).toBeGreaterThan(small.amount);
+
+    const held = await readBoard();
+    expect(held.spots.find((s) => s.trackId === TRACK)?.bid).toBe(big.amount);
+
+    // The smaller payment is refunded. That payer is made whole, but the money
+    // holding the position belongs to someone who has not been refunded, so
+    // taking the song off would rob them of a slot they paid for.
+    const outcome = await reversePayment({
+      eventId: "pay_small:refund.succeeded",
+      providerPaymentId: "pay_small",
+      kind: "refund",
+    });
+
+    expect(outcome).toBe("recorded");
+    expect((await readBoard()).spots).toEqual(held.spots);
+    expect(rankOf((await readBoard()).spots, TRACK)).toBe(1);
+    expect((await getTransaction(small.transactionId))?.note).toContain(
+      "stayed on the tape",
+    );
+  });
+
+  it("records a reversal on a payment that never settled", async () => {
+    const started = await pending();
+    const before = await readBoard();
+
+    await finalizePayment({
+      eventId: "pay_1:payment.failed",
+      transactionId: started.transactionId,
+      providerPaymentId: "pay_1",
+      status: "FAILED",
+    });
+
+    const outcome = await reversePayment({
+      eventId: "pay_1:refund.succeeded",
+      providerPaymentId: "pay_1",
+      kind: "refund",
+    });
+
+    expect(outcome).toBe("not-settled");
+    expect((await readBoard()).spots).toEqual(before.spots);
+    expect((await getTransaction(started.transactionId))?.status).toBe("REFUNDED");
+  });
+
+  it("will not let a late processing event revive a refunded payment", async () => {
+    const started = await bought("pay_1");
+
+    await reversePayment({
+      eventId: "pay_1:refund.succeeded",
+      providerPaymentId: "pay_1",
+      kind: "refund",
+    });
+
+    const outcome = await finalizePayment({
+      eventId: "pay_1:payment.processing",
+      transactionId: started.transactionId,
+      status: "PROCESSING",
+    });
+
+    expect(outcome).toBe("already-final");
+    expect((await getTransaction(started.transactionId))?.status).toBe("REFUNDED");
+    expect(rankOf((await readBoard()).spots, TRACK)).toBeNull();
   });
 });
 

@@ -66,7 +66,7 @@ export function HomeBoard() {
     <>
       <section className="rack" aria-labelledby="block-heading">
         <h2 id="block-heading" className="sr-only">
-          Side A, track 1
+          Track 1
         </h2>
         {lead ? (
           <TapeHeader
@@ -84,7 +84,7 @@ export function HomeBoard() {
             </p>
             <p className="mt-2 text-sm">
               {hydrated
-                ? "Nothing is written on it yet. Paste a song link below and take side A · track 1 for $1."
+                ? "Nothing is written on it yet. Paste a song link below and take track 1 for $1."
                 : "Pulling the running order off the server."}
             </p>
           </div>
@@ -92,7 +92,7 @@ export function HomeBoard() {
 
         <div className="figures mt-3">
           <Figure
-            label="side a · track 1"
+            label="track 1"
             value={formatUsd(market.topBid, 0)}
             note={
               market.lastBidAt ? (
@@ -134,7 +134,7 @@ export function HomeBoard() {
       <section className="rack band" id="rack" aria-labelledby="rack-heading">
         <div className="mb-4 flex flex-wrap items-end justify-between gap-4">
           <div>
-            <p className="slip">side a track 1 to the end of side b</p>
+            <p className="slip">track 1 to the end of the tape</p>
             <h2 id="rack-heading" className="marquee mt-1.5 text-2xl">
               The tape
             </h2>

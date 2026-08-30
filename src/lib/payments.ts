@@ -8,8 +8,8 @@ export class CheckoutNotConfiguredError extends Error {}
 export type StartCheckoutInput = {
   /** A Spotify track link. */
   track: string;
-  /** Slot code such as "A1". The price is worked out on the server. */
-  position: string;
+  /** Track number on the tape, counted from the top. The price is worked out on the server. */
+  position: number;
 };
 
 export type StartedCheckout = {
@@ -52,8 +52,8 @@ export async function startCheckout(
 
 export type PaymentView = {
   status: PaymentStatus;
-  position: string;
-  landedPosition?: string;
+  position: number;
+  landedPosition?: number;
   title: string;
   artist: string;
   amount: number;

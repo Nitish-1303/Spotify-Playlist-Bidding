@@ -6,7 +6,6 @@ import { SiteFooter, SiteHeader } from "@/components/chrome";
 import { useBoard } from "@/lib/board-context";
 import { formatUsd } from "@/lib/format";
 import { readPayment, readPaymentHandle, type PaymentView } from "@/lib/payments";
-import { parseSlotCode, sideOf, trackOnSide } from "@/lib/ranks";
 import { PAYMENT_PROVIDER } from "@/lib/site";
 
 // Transactional page; kept out of search indexes via robots.ts disallow.
@@ -25,13 +24,19 @@ const GIVE_UP_MS = 120_000;
 const FIRST_DELAY = 1500;
 const MAX_DELAY = 8000;
 
-function label(code: string | undefined) {
-  const rank = code ? parseSlotCode(code) : null;
-  if (rank === null) return code ?? "—";
-  return `side ${sideOf(rank)} · track ${trackOnSide(rank)}`;
+function label(position: number | undefined) {
+  return position === undefined ? "—" : `track ${position}`;
 }
 
-type Phase = "reading" | "processing" | "confirmed" | "failed" | "cancelled" | "missing" | "timeout";
+type Phase =
+  | "reading"
+  | "processing"
+  | "confirmed"
+  | "failed"
+  | "cancelled"
+  | "reversed"
+  | "missing"
+  | "timeout";
 
 function phaseOf(view: PaymentView | null): Phase {
   if (!view) return "reading";
@@ -42,6 +47,9 @@ function phaseOf(view: PaymentView | null): Phase {
       return "failed";
     case "CANCELLED":
       return "cancelled";
+    case "REFUNDED":
+    case "CHARGEBACK":
+      return "reversed";
     default:
       return "processing";
   }
@@ -73,6 +81,14 @@ const COPY: Record<Phase, { tag: string; head: string; body: string }> = {
     tag: "not paid",
     head: "Payment cancelled.",
     body: "Nothing changed on the tape. The slot is still open.",
+  },
+  reversed: {
+    tag: "money returned",
+    head: "This payment went back.",
+    // Deliberately does not assert the song has come off: a reversal leaves it
+    // in place when a larger, unrefunded payment is what holds the position. The
+    // note below carries whichever of the two actually happened.
+    body: "The money for this payment has been returned, so it no longer holds a slot on the tape.",
   },
   missing: {
     tag: "nothing to show",

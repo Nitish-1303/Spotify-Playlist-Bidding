@@ -15,12 +15,14 @@ import {
   DodoNotConfiguredError,
   dodoConfigured,
 } from "./dodo";
-import { openRanks, parseSlotCode, priceForRank, rankOf, slotCode } from "./ranks";
+import { openRanks, parsePosition, priceForRank, rankOf } from "./ranks";
 import { fetchTrackMeta, parseSpotifyTrackId, spotifyTrackUrl } from "./spotify";
-import { applyPurchase } from "./tape-rules";
+import { applyPurchase, applyReversal } from "./tape-rules";
 import {
   boardIsDurable,
+  findTransactionByProviderPayment,
   getTransaction,
+  linkProviderPayment,
   putTransaction,
   readBoard,
   withBoard,
@@ -65,7 +67,7 @@ function sameToken(a: string, b: string) {
 export type StartPurchaseInput = {
   /** A Spotify track link, id, or URI. Anything else is refused. */
   track: string;
-  /** Slot code such as "A1", or a rank. Never an amount. */
+  /** Track number on the tape, counted from the top. Never an amount. */
   position: unknown;
   /** Origin of the request, used to build the return URL. */
   origin: string;
@@ -98,7 +100,7 @@ export async function startPurchase(
     );
   }
 
-  const position = parseSlotCode(input.position);
+  const position = parsePosition(input.position);
   if (position === null) {
     throw new PurchaseError("That is not a track position on this tape.");
   }
@@ -121,7 +123,7 @@ export async function startPurchase(
   }
   if (held !== null && position >= held) {
     throw new PurchaseError(
-      `That song already sits at ${slotCode(held)}. Only positions above it are for sale.`,
+      `That song already sits at track ${held}. Only positions above it are for sale.`,
     );
   }
 
@@ -204,6 +206,18 @@ export function mapProviderStatus(status: string): PaymentStatus {
   }
 }
 
+/** Statuses no later event may move a transaction out of. */
+const FINAL: readonly PaymentStatus[] = ["SUCCESS", "REFUNDED", "CHARGEBACK"];
+
+function isFinal(status: PaymentStatus) {
+  return FINAL.includes(status);
+}
+
+/** True once the money has gone back, whether we sent it or a network took it. */
+function isReversed(status: PaymentStatus) {
+  return status === "REFUNDED" || status === "CHARGEBACK";
+}
+
 export type FinalizeInput = {
   /** Webhook delivery id, used to make redelivery a no-op. */
   eventId: string;
@@ -261,9 +275,18 @@ export async function finalizePayment(
   const tx = await getTransaction(input.transactionId);
   if (!tx) return "unknown-transaction";
 
-  // SUCCESS is terminal. A late "processing" redelivery must never walk a
-  // finalised payment backwards or re-run the tape mutation.
-  if (tx.status === "SUCCESS") return "already-final";
+  // Recorded before anything else and on every event, settled or not: a refund
+  // or dispute payload names only Dodo's payment id, so this is the only route
+  // back to the transaction. Writing it for a payment that then fails costs a
+  // key nobody reads; not writing it for one that succeeds loses the reversal.
+  if (input.providerPaymentId) {
+    await linkProviderPayment(input.providerPaymentId, tx.id);
+  }
+
+  // SUCCESS is terminal, and so is a reversal: a late "processing" redelivery
+  // must never walk a finished payment backwards, re-run the tape mutation, or
+  // put a refunded transaction back on its feet.
+  if (isFinal(tx.status)) return "already-final";
 
   const now = Date.now();
 
@@ -351,13 +374,178 @@ export async function finalizePayment(
   return outcome === "ok" ? "finalized" : "conflict";
 }
 
+/** How the money went back. */
+export type ReversalKind = "refund" | "chargeback";
+
+export type ReverseInput = {
+  /** Webhook delivery id, used to make redelivery a no-op. */
+  eventId: string;
+  /** Dodo's payment id. The only handle a refund or dispute payload always has. */
+  providerPaymentId: string;
+  /** Our own id, when the payload happens to carry our checkout metadata. */
+  transactionId?: string;
+  kind: ReversalKind;
+  /**
+   * True when only part of the payment went back. Taken from the provider's own
+   * `is_partial` flag rather than worked out from the amount, which arrives in
+   * different units and currencies depending on the event.
+   */
+  partial?: boolean;
+  /** Free text from the provider. Logged, never shown to a browser. */
+  reason?: string;
+};
+
+export type ReverseOutcome =
+  /** The song came off the tape. */
+  | "reversed"
+  /** Marked, and the tape deliberately left as it was. */
+  | "recorded"
+  | "duplicate"
+  | "unknown-transaction"
+  /** The payment never settled here, so there is nothing on the tape to undo. */
+  | "not-settled"
+  | "conflict";
+
+/**
+ * Undoes a settled payment: a refund we issued, or a dispute the cardholder won.
+ *
+ * A separate entry point from `finalizePayment` rather than another status
+ * through it, because the two run in opposite directions. `finalizePayment`
+ * refuses to touch anything already final — which a refunded payment always is,
+ * since a refund can only follow a success.
+ *
+ * Idempotent the same three ways: the delivery id is claimed inside the commit,
+ * a transaction already reversed is left alone, and the tape write is version
+ * checked. The settled marker is not touched — the payment did settle, and that
+ * record is what stops a stray `payment.processing` redelivery later.
+ */
+export async function reversePayment(
+  input: ReverseInput,
+): Promise<ReverseOutcome> {
+  const tx =
+    (input.transactionId ? await getTransaction(input.transactionId) : null) ??
+    (await findTransactionByProviderPayment(input.providerPaymentId));
+
+  if (!tx) {
+    console.warn("[dodo] reversal for a payment PlaylistBid has no record of", {
+      kind: input.kind,
+      providerPaymentId: input.providerPaymentId,
+    });
+    return "unknown-transaction";
+  }
+
+  if (isReversed(tx.status)) return "duplicate";
+
+  const status: PaymentStatus =
+    input.kind === "chargeback" ? "CHARGEBACK" : "REFUNDED";
+  const now = Date.now();
+
+  const stamp = (note: string): PaymentTransaction => ({
+    ...tx,
+    status,
+    providerPaymentId: tx.providerPaymentId ?? input.providerPaymentId,
+    updatedAt: now,
+    reversedAt: now,
+    note,
+  });
+
+  // Never settled here, so nothing was ever written onto the tape for it. The
+  // reversal is still recorded, because the money did move: this is exactly what
+  // a short payment looks like once it has been refunded from the dashboard —
+  // marked FAILED by the amount guard above, then genuinely paid back.
+  if (tx.status !== "SUCCESS") {
+    const { outcome } = await withBoard(() => ({
+      commit: { transaction: stamp(reverseNote(input.kind)), eventId: input.eventId },
+      result: null,
+    }));
+    if (outcome === "duplicate") return "duplicate";
+    return outcome === "ok" ? "not-settled" : "conflict";
+  }
+
+  // A partial refund is not a cancelled purchase. The slot was bought at one
+  // price and part of that price came back, which is a judgement call about
+  // whether the sale stands — so it is recorded and left to a person, rather
+  // than guessed at by taking someone's song off the tape.
+  if (input.partial) {
+    console.warn("[dodo] partial reversal, tape left alone — review by hand", {
+      kind: input.kind,
+      transactionId: tx.id,
+      providerPaymentId: input.providerPaymentId,
+      reason: input.reason,
+    });
+    const { outcome } = await withBoard(() => ({
+      commit: {
+        transaction: stamp(
+          "Part of this payment was refunded. The song is still on the tape.",
+        ),
+        eventId: input.eventId,
+      },
+      result: null,
+    }));
+    if (outcome === "duplicate") return "duplicate";
+    return outcome === "ok" ? "recorded" : "conflict";
+  }
+
+  const { outcome, result } = await withBoard<string | null>((board) => {
+    const applied = applyReversal(board, {
+      trackId: tx.trackId,
+      amount: tx.amount,
+    });
+
+    return {
+      commit: {
+        // No board key at all when nothing came off, so the version does not
+        // move and a concurrent purchase is not made to retry for nothing.
+        ...(applied.removed ? { board: applied.board } : {}),
+        transaction: stamp(
+          applied.removed
+            ? reverseNote(input.kind)
+            : `${reverseNote(input.kind)} The song stayed on the tape because ${applied.reason}.`,
+        ),
+        eventId: input.eventId,
+      },
+      // Why the tape was left alone, or null when the song came off. Carried out
+      // through `withBoard` rather than a closure variable, because `decide` can
+      // run more than once.
+      result: applied.removed ? null : (applied.reason ?? "of an unstated reason"),
+    };
+  });
+
+  if (outcome === "duplicate") return "duplicate";
+  if (outcome !== "ok") return "conflict";
+
+  if (result) {
+    console.warn("[dodo] reversal did not move the tape", {
+      kind: input.kind,
+      transactionId: tx.id,
+      trackId: tx.trackId,
+      why: result,
+    });
+    return "recorded";
+  }
+
+  console.log("[dodo] song taken off the tape", {
+    kind: input.kind,
+    transactionId: tx.id,
+    trackId: tx.trackId,
+    amount: tx.amount,
+  });
+  return "reversed";
+}
+
+function reverseNote(kind: ReversalKind) {
+  return kind === "chargeback"
+    ? "This payment was charged back, so it no longer holds a slot."
+    : "This payment was refunded, so it no longer holds a slot.";
+}
+
 /** What the buyer's own browser is allowed to see about their payment. */
 export type TransactionView = {
   status: PaymentStatus;
-  /** Slot code bought, e.g. "A1". */
-  position: string;
+  /** Track number bought, counted from the top of the tape. */
+  position: number;
   /** Where the song actually landed, once settled. */
-  landedPosition?: string;
+  landedPosition?: number;
   title: string;
   artist: string;
   amount: number;
@@ -368,9 +556,8 @@ export type TransactionView = {
 export function transactionView(tx: PaymentTransaction): TransactionView {
   return {
     status: tx.status,
-    position: slotCode(tx.position),
-    landedPosition:
-      tx.landedPosition === undefined ? undefined : slotCode(tx.landedPosition),
+    position: tx.position,
+    landedPosition: tx.landedPosition,
     title: tx.title,
     artist: tx.artist,
     amount: tx.amount,

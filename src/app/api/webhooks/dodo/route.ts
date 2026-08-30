@@ -1,6 +1,10 @@
 import { NextResponse } from "next/server";
 import { Webhooks } from "@dodopayments/nextjs";
-import { finalizePayment } from "@/lib/payment-service";
+import {
+  finalizePayment,
+  reversePayment,
+  type ReversalKind,
+} from "@/lib/payment-service";
 import type { PaymentStatus } from "@/lib/types";
 
 /**
@@ -23,6 +27,18 @@ type PaymentEventData = {
   /** Minor units, per Dodo's payment object. Absent on shapes we don't know. */
   total_amount?: number | null;
   currency?: string | null;
+};
+
+/** Refund and dispute payloads. Both name the payment, neither is the payment. */
+type ReversalEventData = {
+  payment_id?: string;
+  metadata?: Record<string, unknown> | null;
+  /** Refunds only. Dodo's own word on whether the whole payment went back. */
+  is_partial?: boolean | null;
+  reason?: string | null;
+  remarks?: string | null;
+  /** Dispute auto-resolved by Visa RDR: a real refund, arriving as a lost one. */
+  is_resolved_by_rdr?: boolean | null;
 };
 
 async function apply(
@@ -62,6 +78,55 @@ async function apply(
   console.log("[dodo]", event, { transactionId, outcome });
 }
 
+/**
+ * Undoes a settled payment, for the events where Dodo's docs say the money has
+ * gone back to the cardholder: `refund.succeeded`, `dispute.lost` ("Funds are
+ * returned to the cardholder", which is also how a Visa RDR auto-refund
+ * arrives), and `dispute.accepted` ("The dispute was accepted (not contested).
+ * The funds are returned to the cardholder").
+ *
+ * `dispute.opened` is not one of them. Their docs suggest "consider revoking
+ * access while it is open", but funds are only held at that point and a dispute
+ * can still be won. Pulling a song off the tape on suspicion would punish a buyer
+ * who then wins, and there is no way to hand a position back once the tape has
+ * moved on beneath it — so an opened dispute is logged loudly and nothing more.
+ */
+async function reverse(
+  event: string,
+  kind: ReversalKind,
+  data: ReversalEventData | undefined,
+) {
+  const paymentId = data?.payment_id;
+  if (!paymentId) {
+    console.warn("[dodo] verified reversal with no payment id", { event });
+    return;
+  }
+
+  const transactionId = data?.metadata?.transactionId;
+
+  const outcome = await reversePayment({
+    eventId: `${paymentId}:${event}`,
+    providerPaymentId: paymentId,
+    // Refund payloads carry a metadata object; whether it is the payment's own
+    // is not something to bank on, and dispute payloads have none at all. So it
+    // is used when it is there and the payment id resolves the rest.
+    transactionId: typeof transactionId === "string" ? transactionId : undefined,
+    kind,
+    partial: data?.is_partial === true,
+    reason: data?.reason ?? data?.remarks ?? undefined,
+  });
+
+  console.log("[dodo]", event, { paymentId, outcome });
+}
+
+/** For the dispute events that do not move money. Visibility, nothing else. */
+function note(event: string, data: ReversalEventData | undefined) {
+  console.warn("[dodo]", event, {
+    paymentId: data?.payment_id,
+    reason: data?.reason ?? data?.remarks ?? undefined,
+  });
+}
+
 const handler = webhookKey
   ? Webhooks({
       webhookKey,
@@ -77,6 +142,24 @@ const handler = webhookKey
           "PROCESSING",
           payload.data as PaymentEventData,
         ),
+
+      // The money has gone back. The song comes off the tape.
+      onRefundSucceeded: async (payload) =>
+        reverse("refund.succeeded", "refund", payload.data as ReversalEventData),
+      onDisputeLost: async (payload) =>
+        reverse("dispute.lost", "chargeback", payload.data as ReversalEventData),
+      onDisputeAccepted: async (payload) =>
+        reverse("dispute.accepted", "chargeback", payload.data as ReversalEventData),
+
+      // The money has not gone anywhere yet, or has come back to us.
+      onDisputeOpened: async (payload) =>
+        note("dispute.opened", payload.data as ReversalEventData),
+      onDisputeExpired: async (payload) =>
+        note("dispute.expired", payload.data as ReversalEventData),
+      onDisputeWon: async (payload) =>
+        note("dispute.won", payload.data as ReversalEventData),
+      onRefundFailed: async (payload) =>
+        note("refund.failed", payload.data as ReversalEventData),
     })
   : null;
 

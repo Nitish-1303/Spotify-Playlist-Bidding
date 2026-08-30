@@ -7,7 +7,7 @@ import { HomeJsonLd } from "@/components/json-ld";
 const CONDITIONS = [
   {
     title: "You buy a track position, not a number",
-    body: "Pick the slot you want — side A track 1, side B track 3 — and pay a dollar more than whoever holds it. The song takes that slot.",
+    body: "Pick the track you want — track 1, track 3, anywhere down the tape — and pay a dollar more than whoever holds it. The song takes that slot.",
   },
   {
     title: "Everyone below shifts one later",
@@ -39,7 +39,7 @@ export default function Page() {
 
       <section className="rack pt-10 pb-8">
         <p className="slip">
-          one tape · made by everyone · side a track 1 opens at $1
+          one tape · made by everyone · track 1 opens at $1
         </p>
         <h1 className="marquee headline mt-3 max-w-3xl">
           Pick the track.
@@ -48,11 +48,11 @@ export default function Page() {
         </h1>
         <p className="mt-5 max-w-2xl text-[1.0625rem] leading-relaxed">
           It&apos;s one long mixtape and every slot on it has a price. Paste a
-          public Spotify track link, choose the exact position you want — side A
-          track 1, side B track 4 — and pay what that slot costs. The song lands
-          there and everything below shifts one track later. A position here is a
-          slot on this site; it does not change Spotify playlists, charts,
-          rankings or streams.
+          public Spotify track link, choose the exact position you want — track
+          1, track 4, anywhere down the tape — and pay what that slot costs. The
+          song lands there and everything below shifts one track later. A
+          position here is a slot on this site; it does not change Spotify
+          playlists, charts, rankings or streams.
         </p>
         <div className="mt-7 flex flex-wrap items-center gap-2.5">
           <a href="#bid" className="btn btn-hammer btn-lg">

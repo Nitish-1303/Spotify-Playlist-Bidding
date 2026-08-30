@@ -107,7 +107,7 @@ export function StatsView() {
         </h2>
         <div className="figures">
           <Figure
-            label="side a · track 1"
+            label="track 1"
             value={formatUsd(market.topBid, 0)}
             note={
               market.lastBidAt ? (
