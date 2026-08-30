@@ -32,6 +32,27 @@ export class DodoRequestError extends Error {
   }
 }
 
+/**
+ * Raised when the slot's price is under the provider's minimum charge.
+ *
+ * Its own error because it is not an outage and not the payer's mistake: the
+ * product's Pay What You Want minimum has been set above what this tape asks
+ * for its cheapest position, so that position cannot be sold at any price the
+ * site will quote — and every attempt looks identical to a provider failure in
+ * a log that only says "refused". It is also the one refusal an operator can
+ * clear in a dashboard in under a minute, which is worth saying out loud.
+ */
+export class DodoAmountBelowMinimumError extends DodoRequestError {
+  constructor(
+    /** Whole dollars the checkout was refused for. */
+    readonly amount: number,
+    detail?: unknown,
+  ) {
+    super("The payment provider's minimum charge is above this slot's price.", detail);
+    this.name = "DodoAmountBelowMinimumError";
+  }
+}
+
 export function dodoConfigured() {
   return Boolean(
     process.env.DODO_PAYMENTS_API_KEY && process.env.DODO_PAYMENTS_PRODUCT_ID,
@@ -96,15 +117,20 @@ export async function createCheckout(
   const data = (await res.json().catch(() => ({}))) as {
     checkout_url?: string;
     session_id?: string;
+    code?: string;
     message?: string;
     error?: string;
   };
 
   if (!res.ok || !data.checkout_url) {
-    throw new DodoRequestError("The payment provider refused the request.", {
-      status: res.status,
-      body: data,
-    });
+    const detail = { status: res.status, body: data };
+    // Dodo names this one, so it can be told apart from every other refusal
+    // instead of being flattened into "try again" for a problem retrying cannot
+    // fix.
+    if (data.code === "REQUEST_AMOUNT_BELOW_MINIMUM") {
+      throw new DodoAmountBelowMinimumError(input.amount, detail);
+    }
+    throw new DodoRequestError("The payment provider refused the request.", detail);
   }
 
   return { checkoutUrl: data.checkout_url, sessionId: data.session_id };

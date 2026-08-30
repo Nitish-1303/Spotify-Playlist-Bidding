@@ -221,6 +221,61 @@ describe("POST /api/payments/create-checkout", () => {
     // The detail is still available to whoever runs the server.
     expect(JSON.stringify(errors)).toContain("trace-123");
   });
+
+  /* —— The refusal that is a setting, not a failure ——
+   *
+   * Dodo rejects a Pay What You Want checkout under the product's own minimum.
+   * That came back as "Unable to start payment. Please try again." — a sentence
+   * that is wrong twice over: trying again cannot help, and it reads as the
+   * site's fault when the fix is one field in a dashboard. Live, it made the
+   * cheapest position on the tape unbuyable and said nothing about why.
+   */
+  it("says a slot is under the checkout minimum, and does not call it a retry", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: RequestInfo | URL) => {
+        const url = String(input);
+        if (url.includes("/embed/track/")) return new Response("<html></html>");
+        if (url.includes("oembed")) {
+          return Response.json({ title: "T", author_name: "A" });
+        }
+        return Response.json(
+          {
+            code: "REQUEST_AMOUNT_BELOW_MINIMUM",
+            message: "Amount cannot be less than minimum amount specified for the product",
+          },
+          { status: 422 },
+        );
+      }),
+    );
+    const errors: unknown[][] = [];
+    vi.spyOn(console, "error").mockImplementation((...args) => {
+      errors.push(args);
+    });
+
+    const { POST } = await import("@/app/api/payments/create-checkout/route");
+    const res = await POST(
+      post("https://playlistbid.test/api/payments/create-checkout", {
+        track: TRACK_URL,
+        position: 1,
+      }),
+    );
+
+    // 503 rather than 502: the provider is up and answering, and it is this
+    // site's own configuration that asked for something it forbids.
+    expect(res.status).toBe(503);
+    const body = (await res.json()) as Record<string, unknown>;
+    // The seed tape's top slot costs $10, and the payer is told which price was
+    // refused and that a different position is still open to them.
+    expect(String(body.error)).toContain("$10");
+    expect(String(body.error)).toContain("nothing has been charged");
+    expect(String(body.error)).not.toMatch(/try again/i);
+
+    // The operator is told what to change, not just that something was refused.
+    const logged = JSON.stringify(errors);
+    expect(logged).toContain("minimum");
+    expect(logged).toContain("REQUEST_AMOUNT_BELOW_MINIMUM");
+  });
 });
 
 /* —— webhook —— */

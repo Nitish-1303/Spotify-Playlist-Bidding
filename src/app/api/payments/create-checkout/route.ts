@@ -1,5 +1,10 @@
 import { NextResponse } from "next/server";
-import { DodoNotConfiguredError, DodoRequestError, dodoConfigured } from "@/lib/dodo";
+import {
+  DodoAmountBelowMinimumError,
+  DodoNotConfiguredError,
+  DodoRequestError,
+  dodoConfigured,
+} from "@/lib/dodo";
 import { PurchaseError, startPurchase } from "@/lib/payment-service";
 import { boardIsDurable } from "@/lib/tape-store";
 
@@ -46,6 +51,22 @@ export async function POST(request: Request) {
     if (err instanceof DodoNotConfiguredError) {
       return NextResponse.json(
         { error: err.message, unconfigured: true },
+        { status: 503 },
+      );
+    }
+    // A price the provider will not accept is a settings mismatch, so the log
+    // says what to change rather than leaving an operator to read a status code.
+    // 503, not 502: the site is asking for something its own configuration
+    // forbids, and nothing about it is the payer's fault or their retry to make.
+    if (err instanceof DodoAmountBelowMinimumError) {
+      console.error(
+        `[dodo] refused $${err.amount} as below the product's minimum — lower the Pay What You Want minimum on DODO_PAYMENTS_PRODUCT_ID to $${err.amount} or less, or raise OPENING_PRICE so no slot is ever quoted under it`,
+        err.detail,
+      );
+      return NextResponse.json(
+        {
+          error: `This position costs $${err.amount}, which is under the minimum this checkout takes. A higher position can still be bought — nothing has been charged.`,
+        },
         { status: 503 },
       );
     }
