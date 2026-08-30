@@ -8,7 +8,7 @@ import { TapeHeader, TrackHead, TrackRow } from "@/components/strip";
 import { TimeAgo } from "@/components/time-ago";
 import { VisitorStatsPanel } from "@/components/visitor-stats-panel";
 import { filterSpots, rankDelta, useBoard } from "@/lib/board-context";
-import { formatInt, formatUsd } from "@/lib/format";
+import { artistLine, formatInt, formatUsd } from "@/lib/format";
 import { deriveMarket } from "@/lib/market";
 import { useVisitorStats } from "@/lib/visitor-stats";
 import type { Spot, TimeFilter } from "@/lib/types";
@@ -216,7 +216,11 @@ export function HomeBoard() {
                       <li key={item.id} className="lrow">
                         <div className="min-w-0">
                           <p className="truncate text-sm">{item.title}</p>
-                          <p className="strip-artist">{item.artist}</p>
+                          {artistLine(item.artist) ? (
+                            <p className="strip-artist">
+                              {artistLine(item.artist)}
+                            </p>
+                          ) : null}
                         </div>
                         <span className="text-right">
                           <span className="tnum block text-sm hammer">

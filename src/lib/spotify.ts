@@ -1,3 +1,10 @@
+/**
+ * Pure link helpers, safe in a client bundle.
+ *
+ * Anything that talks to Spotify — and therefore reads credentials — lives in
+ * ./spotify-api instead. Client components import from here.
+ */
+
 const TRACK_PATTERNS = [
   /open\.spotify\.com\/(?:intl-\w+\/)?track\/([A-Za-z0-9]+)/i,
   /spotify:track:([A-Za-z0-9]+)/i,
@@ -19,29 +26,4 @@ export function spotifyTrackUrl(trackId: string) {
 
 export function spotifyEmbedUrl(trackId: string) {
   return `https://open.spotify.com/embed/track/${trackId}?utm_source=generator&theme=0`;
-}
-
-export type SpotifyMeta = {
-  title: string;
-  artist: string;
-  thumbnailUrl: string;
-};
-
-/** Public oEmbed only — no page scraping. Playback stays in Spotify’s official embed. */
-export async function fetchTrackMeta(trackId: string): Promise<SpotifyMeta> {
-  const url = `https://open.spotify.com/oembed?url=${encodeURIComponent(spotifyTrackUrl(trackId))}`;
-  const res = await fetch(url);
-  if (!res.ok) {
-    throw new Error("Could not load that track. Paste a song link, not a playlist.");
-  }
-  const data = (await res.json()) as {
-    title?: string;
-    author_name?: string;
-    thumbnail_url?: string;
-  };
-  return {
-    title: data.title?.trim() || "Unknown track",
-    artist: data.author_name?.trim() || "Unknown artist",
-    thumbnailUrl: data.thumbnail_url || "",
-  };
 }

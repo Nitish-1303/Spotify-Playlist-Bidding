@@ -70,3 +70,17 @@ export function hourLabel(key: string) {
   if (Number.isNaN(d.getTime())) return `${key.slice(11, 13)}:00`;
   return `${String(d.getHours()).padStart(2, "0")}:00`;
 }
+
+/**
+ * The artist to print, or null to print nothing.
+ *
+ * Songs bought before the Web API lookup existed carry the literal string
+ * "Unknown artist", because oEmbed has no artist field to read. Those are on the
+ * tape for good, so the label is treated as the absence it always was — a title
+ * standing on its own reads better than a row admitting it does not know.
+ */
+export function artistLine(artist: string | undefined | null) {
+  const trimmed = artist?.trim();
+  if (!trimmed || trimmed.toLowerCase() === "unknown artist") return null;
+  return trimmed;
+}

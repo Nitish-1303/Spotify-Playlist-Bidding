@@ -4,7 +4,7 @@ import { SITE_NAME } from "@/lib/site";
 /**
  * The independence disclosures.
  *
- * PlaylistBid uses Spotify track links, Spotify's public oEmbed metadata and
+ * PlaylistBid uses Spotify track links, Spotify's own public metadata APIs and
  * Spotify's official embedded player. It is an independent fan project with no
  * affiliation to Spotify AB, and nothing on this site should be readable as an
  * official Spotify product. That statement is made in four places — the strip
@@ -91,9 +91,10 @@ export function SpotifyContentNote({ className }: { className?: string }) {
           className="attrib-logo"
         />
         <span>
-          Song titles, artwork and playback are provided through Spotify&apos;s
-          own supported services — its public oEmbed endpoint and its official
-          embedded player. Each title links to the track on Spotify.
+          Song titles, artists, artwork and playback are provided through
+          Spotify&apos;s own supported services — its public metadata APIs and
+          its official embedded player. Each title links to the track on
+          Spotify.
         </span>
       </p>
       <p className="attrib-note">

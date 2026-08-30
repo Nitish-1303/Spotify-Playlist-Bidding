@@ -27,7 +27,7 @@ const CONDITIONS = [
   },
   {
     title: "Public song links only",
-    body: "One open.spotify.com/track link per slot. Titles, artwork and playback come from Spotify’s public oEmbed endpoint and official embedded player.",
+    body: "One open.spotify.com/track link per slot. Titles, artists, artwork and playback come from Spotify’s public metadata APIs and official embedded player.",
   },
 ] as const;
 

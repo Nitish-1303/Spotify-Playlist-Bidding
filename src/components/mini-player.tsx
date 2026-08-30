@@ -1,5 +1,6 @@
 "use client";
 
+import { artistLine } from "@/lib/format";
 import { useNowPlaying } from "@/lib/now-playing";
 import { spotifyEmbedUrl } from "@/lib/spotify";
 
@@ -19,7 +20,9 @@ export function MiniPlayer() {
           <div className="deck-meta">
             <p className="deck-now">now playing</p>
             <p className="deck-title">{track.title}</p>
-            <p className="deck-artist">{track.artist}</p>
+            {artistLine(track.artist) ? (
+              <p className="deck-artist">{artistLine(track.artist)}</p>
+            ) : null}
           </div>
 
           <iframe

@@ -55,7 +55,7 @@ export function HomeJsonLd() {
             name: "Is PlaylistBid affiliated with Spotify?",
             acceptedAnswer: {
               "@type": "Answer",
-              text: `No. ${INDEPENDENCE} PlaylistBid uses Spotify track links, Spotify's public oEmbed metadata and Spotify's official embedded player, and nothing more.`,
+              text: `No. ${INDEPENDENCE} PlaylistBid uses Spotify track links, Spotify's own public metadata APIs and Spotify's official embedded player, and nothing more.`,
             },
           },
           {

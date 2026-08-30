@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
-import { fetchTrackMeta, parseSpotifyTrackId } from "@/lib/spotify";
+import { fetchTrackMeta } from "@/lib/spotify-api";
+import { parseSpotifyTrackId } from "@/lib/spotify";
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);

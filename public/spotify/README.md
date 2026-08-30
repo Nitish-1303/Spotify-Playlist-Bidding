@@ -9,9 +9,9 @@ from Spotify's design guidelines asset pack:
 It is here because Spotify requires it. Their guidelines state that any Spotify
 metadata you display — track names, artwork, playback — "must always be
 accompanied by the Spotify brand", and that "you must always attribute content
-from Spotify with the logo". This site shows titles and cover art from Spotify's
-public oEmbed endpoint and plays audio through Spotify's embedded player, so the
-attribution is not optional.
+from Spotify with the logo". This site shows titles, artists and cover art from
+Spotify's own public metadata APIs and plays audio through Spotify's embedded
+player, so the attribution is not optional.
 
 Rules this file is subject to, taken from that same page. Read them before
 touching anything here:

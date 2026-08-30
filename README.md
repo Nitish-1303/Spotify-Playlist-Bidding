@@ -6,10 +6,10 @@ confirmed.
 
 PlaylistBid is an independent fan project. It is **not affiliated with, endorsed
 by, sponsored by, or connected to Spotify AB**, and Spotify is a trademark of
-Spotify AB. The site uses Spotify track links, Spotify's public oEmbed metadata
-and Spotify's official embedded player, and nothing more. Track positions exist
-only on PlaylistBid and do not change Spotify playlists, charts, rankings, or
-streams. That statement is carried in the UI in four places — the strip under
+Spotify AB. The site uses Spotify track links, Spotify's own public metadata
+APIs and Spotify's official embedded player, and nothing more. Track positions
+exist only on PlaylistBid and do not change Spotify playlists, charts, rankings,
+or streams. That statement is carried in the UI in four places — the strip under
 the masthead, a printed card below the hero, a footnote wherever Spotify
 artwork or playback appears, and the footer — so it is not reachable only by
 scrolling to the bottom. See [`src/components/independence.tsx`](src/components/independence.tsx).
@@ -63,8 +63,11 @@ sends can move the tape.
 2. The server validates the Spotify link and the position, reads the current
    tape, and **calculates the price itself**. An `amount` in the request body is
    ignored — the backend is the only source of truth for what a slot costs.
-3. The server reads the song's real title and artist from Spotify's oEmbed
-   endpoint, so a crafted request cannot label a slot however it likes.
+3. The server reads the song's real title and artist from Spotify — the Web API
+   track endpoint when `SPOTIFY_CLIENT_ID`/`SPOTIFY_CLIENT_SECRET` are set,
+   falling back to the public oEmbed endpoint otherwise — so a crafted request
+   cannot label a slot however it likes. oEmbed has no artist field at all, so
+   without the Web API credentials a song goes on the tape with its title alone.
 4. The server creates the Dodo checkout with its own amount and its own
    metadata, records a **PENDING** `PaymentTransaction`, and returns the
    checkout URL plus a one-time owner token.
@@ -165,6 +168,8 @@ annotated list; placeholders only, never real values.
 | `DODO_PAYMENTS_PRICING_MODE` | no | `pwyw` (default) or `quantity`. |
 | `UPSTASH_REDIS_REST_URL` | in production | Also accepted as `KV_REST_API_URL`, except on preview builds. |
 | `UPSTASH_REDIS_REST_TOKEN` | in production | Also accepted as `KV_REST_API_TOKEN`, except on preview builds. |
+| `SPOTIFY_CLIENT_ID` | no | Web API lookup. Unset → songs go on the tape with no artist. |
+| `SPOTIFY_CLIENT_SECRET` | no | Pairs with the id above; both or neither. |
 | `NEXT_PUBLIC_SITE_URL` | no | Canonical URLs and sitemap. |
 
 Without Redis the tape falls back to process memory. That is fine for
@@ -178,6 +183,28 @@ and will not let the scope be narrowed. Previews run on memory as a result. To
 give them a durable tape of their own, set `UPSTASH_REDIS_REST_URL` and
 `UPSTASH_REDIS_REST_TOKEN` on the Preview environment against a second
 database — that pair is honoured everywhere.
+
+### The Spotify pair is enrichment, not a dependency
+
+Spotify's oEmbed endpoint carries a title and a cover and no artist field at
+all, which is why songs bought before this lookup existed sit on the tape
+labelled `Unknown artist`. The Web API's track endpoint does carry the artist,
+and the client-credentials flow is enough to read it: public catalogue data, no
+listener logs in, no listener's account is touched. Create an app at
+[developer.spotify.com/dashboard](https://developer.spotify.com/dashboard) — it
+needs no scopes, and the redirect URI the form demands is never used.
+
+Missing credentials, a refused token, a rate limit or a slow response all fall
+through to oEmbed, because a song must not fail to reach the tape over a missing
+artist name: the payment has already been taken by then. A song with no artist
+prints its title alone rather than a guess, and `artistLine()` in
+[`src/lib/format.ts`](src/lib/format.ts) treats the stored `Unknown artist`
+label as the absence it always was.
+
+Both variables are read only in [`src/lib/spotify-api.ts`](src/lib/spotify-api.ts),
+which no client component imports. The pure link helpers client components do
+need stayed behind in [`src/lib/spotify.ts`](src/lib/spotify.ts) — that is the
+whole reason the two files are separate.
 
 ## Dodo Payments setup — what you must configure by hand
 

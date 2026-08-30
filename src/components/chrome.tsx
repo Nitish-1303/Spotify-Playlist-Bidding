@@ -107,9 +107,9 @@ export function SiteFooter() {
             playlists, charts, rankings, or streams.
           </p>
           <p className="chrome">
-            Song titles, artwork and playback come from Spotify&apos;s public
-            oEmbed endpoint and its official embedded player. Card payments are
-            handled by {PAYMENT_PROVIDER} on their own hosted checkout.
+            Song titles, artists, artwork and playback come from Spotify&apos;s
+            public metadata APIs and its official embedded player. Card payments
+            are handled by {PAYMENT_PROVIDER} on their own hosted checkout.
           </p>
         </div>
       </div>

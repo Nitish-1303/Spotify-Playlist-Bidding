@@ -16,7 +16,8 @@ import {
   dodoConfigured,
 } from "./dodo";
 import { openRanks, parsePosition, priceForRank, rankOf } from "./ranks";
-import { fetchTrackMeta, parseSpotifyTrackId, spotifyTrackUrl } from "./spotify";
+import { fetchTrackMeta } from "./spotify-api";
+import { parseSpotifyTrackId, spotifyTrackUrl } from "./spotify";
 import { applyPurchase, applyReversal } from "./tape-rules";
 import {
   boardIsDurable,

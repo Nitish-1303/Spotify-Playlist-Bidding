@@ -45,7 +45,7 @@ const CONDITIONS = [
   },
   {
     head: "Titles and playback come from Spotify",
-    body: "Names, artists and cover art are read from Spotify’s public oEmbed endpoint, and playback runs in Spotify’s own embedded player. Nothing is uploaded or rehosted, and none of it makes PlaylistBid a Spotify product.",
+    body: "Names, artists and cover art are read from Spotify’s own public metadata APIs, and playback runs in Spotify’s own embedded player. Nothing is uploaded or rehosted, and none of it makes PlaylistBid a Spotify product.",
   },
   {
     head: "One tape, the same for everyone",

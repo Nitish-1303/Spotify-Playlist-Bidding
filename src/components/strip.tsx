@@ -2,7 +2,7 @@
 
 import { CoverArt } from "@/components/cover-art";
 import { TimeAgo } from "@/components/time-ago";
-import { formatInt, formatUsd } from "@/lib/format";
+import { formatInt, formatUsd, artistLine } from "@/lib/format";
 import { useNowPlaying } from "@/lib/now-playing";
 import type { Spot } from "@/lib/types";
 
@@ -80,8 +80,12 @@ export function TapeHeader({
             {spot.title}
           </h2>
           <p className="plist-meta">
-            <b>{spot.artist}</b>
-            <span aria-hidden>·</span>
+            {artistLine(spot.artist) ? (
+              <>
+                <b>{artistLine(spot.artist)}</b>
+                <span aria-hidden>·</span>
+              </>
+            ) : null}
             <span>
               holding <b className="hammer">{formatUsd(spot.bid, 0)}</b>
             </span>
@@ -191,7 +195,9 @@ export function TrackRow({ spot, rank, move, onTake, onOpen }: TrackRowProps) {
           >
             {spot.title}
           </a>
-          <p className="trow-sub">{spot.artist}</p>
+          {artistLine(spot.artist) ? (
+            <p className="trow-sub">{artistLine(spot.artist)}</p>
+          ) : null}
         </div>
       </div>
 
