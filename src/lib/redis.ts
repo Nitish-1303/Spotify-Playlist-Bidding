@@ -6,18 +6,38 @@
  *   UPSTASH_REDIS_REST_URL / UPSTASH_REDIS_REST_TOKEN
  *   KV_REST_API_URL        / KV_REST_API_TOKEN
  *
+ * The two are not quite equal on Vercel preview builds — see ON_PREVIEW below.
+ *
  * Server-only. Nothing here is imported from a client component, and the token
  * never leaves the server.
  */
 
+/**
+ * Preview deployments must not write to the production tape: a branch build is
+ * where you go to break things, and the tape holds slots people paid for.
+ *
+ * The Vercel Upstash integration injects its KV_REST_API_* pair into Preview as
+ * well as Production and will not let that scope be narrowed, so the guard has
+ * to live here. A preview that genuinely wants a durable tape can still have
+ * one by setting UPSTASH_REDIS_REST_URL/_TOKEN on the Preview environment,
+ * pointing at a second database — that pair is a deliberate choice, the KV_*
+ * pair is just whatever the integration happened to attach.
+ *
+ * With no store a preview reports itself as not durable and the paddle refuses
+ * to take money, which is exactly right for a sandbox.
+ */
+const ON_PREVIEW = process.env.VERCEL_ENV === "preview";
+
 const REST_URL = (
   process.env.UPSTASH_REDIS_REST_URL ||
-  process.env.KV_REST_API_URL ||
+  (ON_PREVIEW ? "" : process.env.KV_REST_API_URL) ||
   ""
 ).replace(/\/$/, "");
 
 const REST_TOKEN =
-  process.env.UPSTASH_REDIS_REST_TOKEN || process.env.KV_REST_API_TOKEN || "";
+  process.env.UPSTASH_REDIS_REST_TOKEN ||
+  (ON_PREVIEW ? "" : process.env.KV_REST_API_TOKEN) ||
+  "";
 
 /** True when a durable store is wired up. False means callers fall back. */
 export function redisConfigured() {

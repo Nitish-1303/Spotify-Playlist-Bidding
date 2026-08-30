@@ -20,6 +20,9 @@ const webhookKey = process.env.DODO_PAYMENTS_WEBHOOK_KEY;
 type PaymentEventData = {
   payment_id: string;
   metadata?: Record<string, unknown> | null;
+  /** Minor units, per Dodo's payment object. Absent on shapes we don't know. */
+  total_amount?: number | null;
+  currency?: string | null;
 };
 
 async function apply(
@@ -47,6 +50,13 @@ async function apply(
     transactionId,
     providerPaymentId: paymentId,
     status,
+    // What was actually charged. The slot price is the server's figure, and the
+    // amount box on a Pay What You Want checkout is the customer's, so the two
+    // are compared before the tape moves.
+    paidMinorUnits: typeof data?.total_amount === "number"
+      ? data.total_amount
+      : undefined,
+    currency: typeof data?.currency === "string" ? data.currency : undefined,
   });
 
   console.log("[dodo]", event, { transactionId, outcome });

@@ -4,7 +4,8 @@
  * Durable path: any Redis with the Upstash REST protocol (Upstash Redis or
  * Vercel KV). Set UPSTASH_REDIS_REST_URL + UPSTASH_REDIS_REST_TOKEN, or the
  * KV_REST_API_* equivalents, and counts survive redeploys and are shared by
- * every serverless instance.
+ * every serverless instance. Which of those two pairs counts on a Vercel
+ * preview build is decided in redis.ts, not here.
  *
  * Fallback path: process memory. Real counts, but per-instance and reset on
  * redeploy — the UI labels itself accordingly via `snapshot.durable`.
@@ -19,17 +20,9 @@ import {
   type StatPoint,
   type StatsSnapshot,
 } from "./stats-types";
+import { pipeline, redisConfigured, toInt, type RedisCmd } from "./redis";
 
-const REST_URL = (
-  process.env.UPSTASH_REDIS_REST_URL ||
-  process.env.KV_REST_API_URL ||
-  ""
-).replace(/\/$/, "");
-
-const REST_TOKEN =
-  process.env.UPSTASH_REDIS_REST_TOKEN || process.env.KV_REST_API_TOKEN || "";
-
-const DURABLE = Boolean(REST_URL && REST_TOKEN);
+const DURABLE = redisConfigured();
 
 const K = {
   viewsTotal: "pb:v:total",
@@ -222,32 +215,6 @@ function readMem(now: number): StatsSnapshot {
 
 /* —— durable path (Upstash REST protocol) —— */
 
-type Cmd = (string | number)[];
-
-async function pipeline(commands: Cmd[]): Promise<unknown[]> {
-  const res = await fetch(`${REST_URL}/pipeline`, {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${REST_TOKEN}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify(commands),
-    cache: "no-store",
-  });
-  if (!res.ok) throw new Error(`redis http ${res.status}`);
-  const payload = (await res.json()) as { result?: unknown; error?: string }[];
-  if (!Array.isArray(payload)) throw new Error("redis: unexpected response");
-  return payload.map((entry) => {
-    if (entry.error) throw new Error(`redis: ${entry.error}`);
-    return entry.result;
-  });
-}
-
-function toInt(value: unknown) {
-  const n = typeof value === "string" ? Number(value) : value;
-  return typeof n === "number" && Number.isFinite(n) ? n : 0;
-}
-
 /** Upstash returns ZRANGE … WITHSCORES as a flat [member, score, …] array. */
 function toStatPoints(value: unknown): StatPoint[] {
   if (!Array.isArray(value)) return [];
@@ -260,7 +227,7 @@ function toStatPoints(value: unknown): StatPoint[] {
 
 async function recordRedis(hit: Hit, now: number) {
   const cutoff = now - LIVE_WINDOW_MS;
-  const commands: Cmd[] = [
+  const commands: RedisCmd[] = [
     ["ZADD", K.live, now, hit.visitorId],
     ["ZREMRANGEBYSCORE", K.live, 0, cutoff],
   ];

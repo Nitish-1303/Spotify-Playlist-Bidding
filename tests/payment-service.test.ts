@@ -539,4 +539,109 @@ describe("readOwnTransaction", () => {
   });
 });
 
+/**
+ * The product is Pay What You Want, so the amount box on Dodo's checkout page
+ * belongs to the customer. A settled payment therefore proves money moved, not
+ * that the slot's price was paid, and the tape records the server's figure.
+ */
+describe("finalizePayment guards the amount", () => {
+  it("refuses to move the tape when less than the slot price arrived", async () => {
+    const started = await pending();
+    const before = await readBoard();
+
+    const outcome = await finalizePayment({
+      eventId: "pay_short:payment.succeeded",
+      transactionId: started.transactionId,
+      providerPaymentId: "pay_short",
+      status: "SUCCESS",
+      // The slot costs $10; a dollar turned up.
+      paidMinorUnits: 100,
+      currency: "USD",
+    });
+
+    expect(outcome).toBe("underpaid");
+
+    const after = await readBoard();
+    expect(after.spots).toEqual(before.spots);
+    expect(rankOf(after.spots, TRACK)).toBeNull();
+
+    const tx = await getTransaction(started.transactionId);
+    expect(tx?.status).toBe("FAILED");
+    expect(tx?.completedAt).toBeUndefined();
+  });
+
+  it("sells the slot when the exact price arrived", async () => {
+    const started = await pending();
+
+    const outcome = await finalizePayment({
+      eventId: "pay_exact:payment.succeeded",
+      transactionId: started.transactionId,
+      status: "SUCCESS",
+      paidMinorUnits: 1000,
+      currency: "USD",
+    });
+
+    expect(outcome).toBe("finalized");
+    expect(rankOf((await readBoard()).spots, TRACK)).toBe(1);
+  });
+
+  it("sells the slot when more than the price arrived, tax included", async () => {
+    const started = await pending();
+
+    const outcome = await finalizePayment({
+      eventId: "pay_over:payment.succeeded",
+      transactionId: started.transactionId,
+      status: "SUCCESS",
+      paidMinorUnits: 1180,
+      currency: "USD",
+    });
+
+    expect(outcome).toBe("finalized");
+    expect(rankOf((await readBoard()).spots, TRACK)).toBe(1);
+  });
+
+  it("falls through rather than refusing when the payload carries no amount", async () => {
+    const started = await pending();
+
+    const outcome = await finalizePayment({
+      eventId: "pay_noamount:payment.succeeded",
+      transactionId: started.transactionId,
+      status: "SUCCESS",
+    });
+
+    expect(outcome).toBe("finalized");
+  });
+
+  it("does not compare figures across currencies", async () => {
+    const started = await pending();
+
+    // 850 paise is not 850 cents. Refusing here would take a slot from someone
+    // who paid, so the mismatched currency is logged and allowed instead.
+    const outcome = await finalizePayment({
+      eventId: "pay_inr:payment.succeeded",
+      transactionId: started.transactionId,
+      status: "SUCCESS",
+      paidMinorUnits: 850,
+      currency: "INR",
+    });
+
+    expect(outcome).toBe("finalized");
+  });
+
+  it("leaves a failed payment reported as failed, not as underpaid", async () => {
+    const started = await pending();
+
+    const outcome = await finalizePayment({
+      eventId: "pay_failed:payment.failed",
+      transactionId: started.transactionId,
+      status: "FAILED",
+      paidMinorUnits: 0,
+      currency: "USD",
+    });
+
+    expect(outcome).toBe("recorded");
+    expect((await getTransaction(started.transactionId))?.status).toBe("FAILED");
+  });
+});
+
 

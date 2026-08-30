@@ -138,13 +138,21 @@ annotated list; placeholders only, never real values.
 | `DODO_PAYMENTS_WEBHOOK_KEY` | yes | Signing secret (`whsec_…`). Unset → the webhook answers `503` and refuses every delivery. |
 | `DODO_PAYMENTS_ENVIRONMENT` | no | `test_mode` (default) or `live_mode`. |
 | `DODO_PAYMENTS_PRICING_MODE` | no | `pwyw` (default) or `quantity`. |
-| `UPSTASH_REDIS_REST_URL` | in production | Also accepted as `KV_REST_API_URL`. |
-| `UPSTASH_REDIS_REST_TOKEN` | in production | Also accepted as `KV_REST_API_TOKEN`. |
+| `UPSTASH_REDIS_REST_URL` | in production | Also accepted as `KV_REST_API_URL`, except on preview builds. |
+| `UPSTASH_REDIS_REST_TOKEN` | in production | Also accepted as `KV_REST_API_TOKEN`, except on preview builds. |
 | `NEXT_PUBLIC_SITE_URL` | no | Canonical URLs and sitemap. |
 
 Without Redis the tape falls back to process memory. That is fine for
 `npm run dev`, but on serverless it is per-instance and resets on redeploy, so
 the site reports itself as not durable and the paddle refuses to take money.
+
+Vercel preview deployments ignore the `KV_REST_API_*` pair on purpose, so a
+branch build cannot move slots on the tape people paid for: the Upstash
+marketplace integration attaches those names to Preview as well as Production
+and will not let the scope be narrowed. Previews run on memory as a result. To
+give them a durable tape of their own, set `UPSTASH_REDIS_REST_URL` and
+`UPSTASH_REDIS_REST_TOKEN` on the Preview environment against a second
+database — that pair is honoured everywhere.
 
 ## Dodo Payments setup — what you must configure by hand
 

@@ -210,6 +210,10 @@ export type FinalizeInput = {
   transactionId: string;
   providerPaymentId?: string;
   status: PaymentStatus;
+  /** What actually arrived, in minor units, when the provider reports it. */
+  paidMinorUnits?: number;
+  /** Currency of `paidMinorUnits`, as the provider spells it. */
+  currency?: string;
 };
 
 export type FinalizeOutcome =
@@ -218,7 +222,29 @@ export type FinalizeOutcome =
   | "duplicate"
   | "already-final"
   | "unknown-transaction"
+  | "underpaid"
   | "conflict";
+
+/**
+ * True when less money arrived than the slot costs.
+ *
+ * This matters because the product is Pay What You Want: the amount box on the
+ * provider's checkout page is editable, so "payment succeeded" is not by itself
+ * proof that the slot's price was paid. The tape records the server's own
+ * figure, so without this check a $40 position could be bought for a dollar.
+ *
+ * Deliberately permissive in two cases, because a false refusal takes a slot
+ * from someone who did pay: an unrecognised payload shape (no amount at all)
+ * and a non-USD settlement, where the figures are not comparable — adaptive
+ * currency would report paise or cents of something else entirely. Both fall
+ * through to the normal path and are logged instead.
+ */
+function underpaid(tx: PaymentTransaction, input: FinalizeInput) {
+  const paid = input.paidMinorUnits;
+  if (typeof paid !== "number" || !Number.isFinite(paid)) return false;
+  if (input.currency && input.currency.toUpperCase() !== "USD") return false;
+  return paid < tx.amount * 100;
+}
 
 /**
  * Applies a verified payment outcome. The only function in the codebase that
@@ -241,12 +267,26 @@ export async function finalizePayment(
 
   const now = Date.now();
 
-  if (input.status !== "SUCCESS") {
+  // A short payment is treated as a failure, not as a cheap slot: the money is
+  // settled, so it is the tape that must not move. Refund it from the provider
+  // dashboard — nothing here can, and nothing here pretends to.
+  const short = input.status === "SUCCESS" && underpaid(tx, input);
+  if (short) {
+    console.error("[dodo] short payment, tape left alone", {
+      transactionId: tx.id,
+      expectedMinorUnits: tx.amount * 100,
+      paidMinorUnits: input.paidMinorUnits,
+      currency: input.currency,
+    });
+  }
+
+  if (input.status !== "SUCCESS" || short) {
     const next: PaymentTransaction = {
       ...tx,
-      status: input.status,
+      status: short ? "FAILED" : input.status,
       providerPaymentId: input.providerPaymentId ?? tx.providerPaymentId,
       updatedAt: now,
+      ...(short ? { note: "Paid less than the slot price." } : {}),
     };
     const { outcome } = await withBoard(() => ({
       // No board in the commit: a payment that is not settled leaves the tape
@@ -262,7 +302,8 @@ export async function finalizePayment(
     }));
     if (outcome === "duplicate") return "duplicate";
     if (outcome === "stale") return "already-final";
-    return outcome === "ok" ? "recorded" : "conflict";
+    if (outcome !== "ok") return "conflict";
+    return short ? "underpaid" : "recorded";
   }
 
   const { outcome } = await withBoard((board) => {
