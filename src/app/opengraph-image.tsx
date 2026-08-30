@@ -15,6 +15,8 @@ const HAMMER = "#22c55e";
 const ON_HAMMER = "#05140a";
 const PRESS = "#7cb2ff";
 const CHROME = "#a7a7ae";
+const SLOT = "#52525b"; /* an unlit row in the mark — lifted from #3f3f46,
+                           which goes muddy at this size */
 
 export default function OpenGraphImage() {
   return new ImageResponse(
@@ -40,23 +42,38 @@ export default function OpenGraphImage() {
             marginBottom: 36,
           }}
         >
+          {/* The mark: three rows, top slot lit. Same shapes as the favicon,
+              drawn as boxes so nothing here depends on a font. */}
           <div
             style={{
               width: 58,
               height: 58,
-              borderRadius: 999,
-              background: HAMMER,
+              borderRadius: 14,
+              background: STRIP,
+              border: `1px solid ${EDGE}`,
               display: "flex",
-              alignItems: "center",
+              flexDirection: "column",
+              alignItems: "flex-start",
               justifyContent: "center",
-              color: ON_HAMMER,
-              fontSize: 28,
-              fontWeight: 800,
+              gap: 5,
+              padding: 11,
             }}
           >
-            A1
+            <div style={{ width: 36, height: 8, borderRadius: 4, background: HAMMER }} />
+            <div style={{ width: 27, height: 8, borderRadius: 4, background: SLOT }} />
+            <div style={{ width: 18, height: 8, borderRadius: 4, background: SLOT }} />
           </div>
-          <div style={{ fontSize: 34, fontWeight: 800, letterSpacing: 1 }}>
+          {/* Satori needs display:flex on any box with more than one child, and
+              a text node beside the coloured span counts as two. Without it the
+              whole card fails to render rather than falling back. */}
+          <div
+            style={{
+              display: "flex",
+              fontSize: 34,
+              fontWeight: 800,
+              letterSpacing: 1,
+            }}
+          >
             PLAYLIST<span style={{ color: HAMMER }}>BID</span>
           </div>
           <div
