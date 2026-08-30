@@ -200,8 +200,35 @@ describe("startPurchase", () => {
         position: 6,
         origin: ORIGIN,
       }),
-    ).rejects.toThrow(/already sits/);
+    ).rejects.toThrow(/already on the tape at track 6/);
     expect(checkoutCalls).toHaveLength(0);
+  });
+
+  it("says there is nothing above track 1 when the song holds it", async () => {
+    // The one duplicate that is a flat refusal rather than a redirection: there
+    // is no position above the top of the tape to sell.
+    const board = await readBoard();
+    const top = board.spots[0];
+
+    await expect(
+      startPurchase({ track: top.trackUrl, position: 1, origin: ORIGIN }),
+    ).rejects.toThrow(/nothing above it to buy/);
+    expect(checkoutCalls).toHaveLength(0);
+  });
+
+  it("still sells a song already on the tape a position above it", async () => {
+    // The rule the site states: a song moves, it never repeats. Blocking every
+    // duplicate outright would delete this, so the refusal above is deliberately
+    // narrow.
+    const board = await readBoard();
+    const seated = board.spots[5];
+
+    const started = await startPurchase({
+      track: seated.trackUrl,
+      position: 2,
+      origin: ORIGIN,
+    });
+    expect(started.checkoutUrl).toBeTruthy();
   });
 });
 

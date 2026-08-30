@@ -32,6 +32,12 @@ function stubNetwork() {
           thumbnail_url: "https://img.test/cover.jpg",
         });
       }
+      // The artist source of last resort. Answered rather than thrown so the
+      // fallback path runs the way it does in production, where oEmbed carries
+      // no artist field at all.
+      if (url.includes("/embed/track/")) {
+        return new Response("<html></html>", { status: 200 });
+      }
       if (url.includes("dodopayments.com/checkouts")) {
         checkoutCalls.push(
           JSON.parse(String(init?.body ?? "{}")) as Record<string, unknown>,
@@ -857,6 +863,111 @@ describe("POST /api/board/play", () => {
   ])("refuses %s", async (_label, body) => {
     const { POST } = await import("@/app/api/board/play/route");
     const res = await POST(post("https://playlistbid.test/api/board/play", body));
+    expect(res.status).toBe(400);
+  });
+});
+
+/**
+ * The paste-time lookup. It sells nothing, so everything here is about telling
+ * the truth early: what song a link is, and whether the tape already has it.
+ */
+describe("GET /api/track", () => {
+  function get(query: string) {
+    return new Request(`https://playlistbid.test/api/track?${query}`);
+  }
+
+  it("resolves a link and says the tape does not have it", async () => {
+    const { GET } = await import("@/app/api/track/route");
+    const board = await readBoard();
+
+    const res = await GET(get(`url=${encodeURIComponent(TRACK_URL)}`));
+    expect(res.status).toBe(200);
+
+    const body = await res.json();
+    expect(body).toMatchObject({
+      trackId: TRACK,
+      title: "Real Title",
+      alreadyOnTape: false,
+      position: null,
+    });
+    // Every filled slot plus one on the open end.
+    expect(body.openPositions).toHaveLength(board.spots.length + 1);
+  });
+
+  it("strips ?si= tracking parameters before matching", async () => {
+    const { GET } = await import("@/app/api/track/route");
+    const board = await readBoard();
+    const seated = board.spots[4];
+
+    const res = await GET(
+      get(`url=${encodeURIComponent(`${seated.trackUrl}?si=abc123&utm_source=x`)}`),
+    );
+
+    const body = await res.json();
+    expect(body.trackId).toBe(seated.trackId);
+    expect(body.alreadyOnTape).toBe(true);
+    expect(body.position).toBe(5);
+  });
+
+  it("offers only the positions above a song already on the tape", async () => {
+    const { GET } = await import("@/app/api/track/route");
+    const board = await readBoard();
+    const seated = board.spots[3];
+
+    const res = await GET(get(`url=${encodeURIComponent(seated.trackUrl)}`));
+    const body = await res.json();
+
+    expect(body.alreadyOnTape).toBe(true);
+    expect(body.position).toBe(4);
+    // Not 4, and nothing below it: paying to sit where you already sit, or
+    // lower, takes money and changes nothing.
+    expect(body.openPositions).toEqual([1, 2, 3]);
+  });
+
+  it("leaves nothing to buy for the song holding track 1", async () => {
+    const { GET } = await import("@/app/api/track/route");
+    const board = await readBoard();
+
+    const res = await GET(get(`url=${encodeURIComponent(board.spots[0].trackUrl)}`));
+    const body = await res.json();
+
+    expect(body.position).toBe(1);
+    expect(body.openPositions).toEqual([]);
+  });
+
+  it("recognises a typed title that is already on the tape", async () => {
+    // No catalogue search exists — Spotify refuses /v1/search to this app — so
+    // the only titles this can know are the ones the tape is already holding.
+    // That is the case worth catching: adding something twice by name.
+    const { GET } = await import("@/app/api/track/route");
+    const board = await readBoard();
+    const seated = board.spots[2];
+
+    const res = await GET(get(`q=${encodeURIComponent(seated.title.toUpperCase())}`));
+    expect(res.status).toBe(200);
+
+    const body = await res.json();
+    expect(body).toMatchObject({
+      trackId: seated.trackId,
+      title: seated.title,
+      matchedByTitle: true,
+      alreadyOnTape: true,
+      position: 3,
+    });
+    // The canonical link comes back, so the paddle can price it as a paste.
+    expect(body.trackUrl).toContain(seated.trackId);
+  });
+
+  it("refuses text that is neither a link nor a song on the tape", async () => {
+    const { GET } = await import("@/app/api/track/route");
+    const res = await GET(get("q=something%20nobody%20bought"));
+    expect(res.status).toBe(400);
+    expect((await res.json()).error).toMatch(/Paste a song link/);
+  });
+
+  it("refuses a single character rather than matching half the tape", async () => {
+    const { GET } = await import("@/app/api/track/route");
+    const res = await GET(get("q=a"));
     expect(res.status).toBe(400);
   });
 });

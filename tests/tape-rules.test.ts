@@ -1,6 +1,12 @@
 import { describe, expect, it } from "vitest";
 import { chartOrder } from "@/lib/ranks";
-import { applyPlay, applyPurchase, applyReversal, rankMap } from "@/lib/tape-rules";
+import {
+  applyPlay,
+  applyPurchase,
+  applyReversal,
+  findSpotByTitle,
+  rankMap,
+} from "@/lib/tape-rules";
 import type { BoardState, Spot } from "@/lib/types";
 
 /** Prices descending from $5, each written on an hour apart. */
@@ -264,5 +270,55 @@ describe("chartOrder", () => {
       "t3",
       "t1",
     ]);
+  });
+});
+
+describe("findSpotByTitle", () => {
+  /** A tape with titles worth confusing. */
+  function named(titles: string[]): Spot[] {
+    return tape(titles.map((_, i) => 5 - i)).spots.map((s, i) => ({
+      ...s,
+      title: titles[i],
+    }));
+  }
+
+  it("finds a song by the title someone typed", () => {
+    const spots = named(["Blinding Lights", "Shape of You"]);
+    expect(findSpotByTitle(spots, "blinding lights")?.trackId).toBe("t1");
+  });
+
+  it("ignores case, punctuation and stray spacing", () => {
+    const spots = named(["Don't Stop Me Now"]);
+    expect(findSpotByTitle(spots, "  dont stop me now  ")?.trackId).toBe("t1");
+  });
+
+  it("sees past the suffixes Spotify puts on a title", () => {
+    // The tape stores whatever Spotify called it; nobody types that.
+    const spots = named([
+      "Blinding Lights - Remastered 2021",
+      "Levitating (feat. DaBaby)",
+    ]);
+    expect(findSpotByTitle(spots, "Blinding Lights")?.trackId).toBe("t1");
+    expect(findSpotByTitle(spots, "Levitating")?.trackId).toBe("t2");
+  });
+
+  it("does not match a song the tape does not have", () => {
+    expect(findSpotByTitle(named(["Blinding Lights"]), "Shape of You")).toBeNull();
+  });
+
+  it("refuses to match on almost nothing", () => {
+    // A one-character query would otherwise land on whatever sorts first.
+    const spots = named(["A"]);
+    expect(findSpotByTitle(spots, "a")).toBeNull();
+    expect(findSpotByTitle(spots, "")).toBeNull();
+    expect(findSpotByTitle(spots, "!!!")).toBeNull();
+  });
+
+  it("never matches a partial title", () => {
+    // Exact after normalising, so "Lights" cannot take a payment to the wrong
+    // song's slot.
+    const spots = named(["Blinding Lights"]);
+    expect(findSpotByTitle(spots, "Lights")).toBeNull();
+    expect(findSpotByTitle(spots, "Blinding Lights Extra")).toBeNull();
   });
 });

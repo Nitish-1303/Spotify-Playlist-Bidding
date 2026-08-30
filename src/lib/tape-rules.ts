@@ -12,6 +12,42 @@ export function rankMap(spots: Spot[]): Record<string, number> {
   return ranks;
 }
 
+/* —— Is this song already on the tape? ——
+ *
+ * The track id is the rule, and the only thing a purchase is ever decided on.
+ * It is exact, it survives `?si=` tracking parameters, `intl-xx/` paths and
+ * `spotify:track:` URIs because parseSpotifyTrackId strips all of them, and it
+ * is what `applyPurchase` matches below — which is why the tape cannot hold one
+ * song twice no matter what arrives.
+ *
+ * The title match under it is a courtesy for the person who types "Blinding
+ * Lights" instead of pasting a link. It compares only against songs already on
+ * the tape and never guesses at Spotify's catalogue, so the worst a wrong match
+ * can do is name the wrong tape row back at whoever typed it. Putting a song on
+ * the tape still takes a real id from a real link.
+ */
+
+/** Loose enough that "Blinding Lights" finds "Blinding Lights - Remastered". */
+export function normalizeTitle(text: string) {
+  return text
+    .toLowerCase()
+    .replace(/\([^)]*\)|\[[^\]]*\]/g, " ") // (feat. …), [Remastered]
+    .replace(/\s-\s.*$/, " ") // - Radio Edit
+    // Apostrophes vanish rather than splitting a word, so somebody typing
+    // "dont stop me now" still finds "Don't Stop Me Now".
+    .replace(/['’`]/g, "")
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim();
+}
+
+/** The song on the tape whose title is the one typed, if there is one. */
+export function findSpotByTitle(spots: Spot[], text: string): Spot | null {
+  const wanted = normalizeTitle(text);
+  // Two characters is the floor: "a" would match half a tape.
+  if (wanted.length < 2) return null;
+  return spots.find((s) => normalizeTitle(s.title) === wanted) ?? null;
+}
+
 export type PurchaseInput = {
   trackId: string;
   trackUrl: string;

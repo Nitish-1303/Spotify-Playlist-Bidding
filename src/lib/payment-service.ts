@@ -122,9 +122,15 @@ export async function startPurchase(
   if (!openRanks(board.spots, trackId).includes(position)) {
     throw new PurchaseError("That track position is not on the tape.");
   }
+  // The duplicate rule, and the only place it is enforced with money at stake.
+  // A song on the tape is never written on twice — applyPurchase moves the entry
+  // it already has — so the only thing left to refuse is paying for a position
+  // that would not move it: the one it holds, or one below.
   if (held !== null && position >= held) {
     throw new PurchaseError(
-      `That song already sits at track ${held}. Only positions above it are for sale.`,
+      held === 1
+        ? "This song is already on the tape at track 1. There is nothing above it to buy."
+        : `This song is already on the tape at track ${held}. Only positions above it are for sale.`,
     );
   }
 

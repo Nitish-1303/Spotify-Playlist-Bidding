@@ -72,15 +72,55 @@ export function BidTicket({
   const rank = slots.includes(targetRank) ? targetRank : (slots[0] ?? 1);
   const bid = priceForRank(spots, rank, draftId);
 
+  /**
+   * Somebody typed a title instead of pasting a link.
+   *
+   * The server can only recognise it if the song is already on the tape — there
+   * is no catalogue search behind this, and there cannot be one — which is
+   * exactly the case worth catching: they are about to add something that is on
+   * it already. When it matches, the box is filled in with the real link so the
+   * rest of the paddle prices it the way a paste would.
+   */
+  async function resolveTyped(text: string) {
+    setBusy(true);
+    setStatus(null);
+    try {
+      const res = await fetch(`/api/track?q=${encodeURIComponent(text)}`);
+      const data = (await res.json()) as {
+        trackId?: string;
+        trackUrl?: string;
+        title?: string;
+        position?: number | null;
+        openPositions?: number[];
+      };
+      if (!res.ok || !data.trackId || !data.trackUrl || !data.position) {
+        setStatus("That is not a track link. Use open.spotify.com/track/…");
+        return;
+      }
+      setUrl(data.trackUrl);
+      setStatus(
+        data.openPositions?.length
+          ? `"${data.title}" is already on the tape at ${slotLabel(data.position)}. Pick a position above it.`
+          : `"${data.title}" is already on the tape at ${slotLabel(data.position)}. There is nothing above it to buy.`,
+      );
+    } catch {
+      setStatus("That is not a track link. Use open.spotify.com/track/…");
+    } finally {
+      setBusy(false);
+    }
+  }
+
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     const trackId = parseSpotifyTrackId(url);
     if (!trackId) {
-      setStatus("That is not a track link. Use open.spotify.com/track/…");
+      await resolveTyped(url);
       return;
     }
     if (stuck) {
-      setStatus("That song already holds track 1. Nothing above it.");
+      setStatus(
+        "This song is already on the tape at track 1. There is nothing above it to buy.",
+      );
       return;
     }
 
