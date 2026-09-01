@@ -1,4 +1,9 @@
 import { NextResponse } from "next/server";
+import {
+  hit,
+  TRACK_LOOKUP_LIMIT,
+  TRACK_LOOKUP_WINDOW_SEC,
+} from "@/lib/rate-limit";
 import { openRanks, rankOf } from "@/lib/ranks";
 import { parseSpotifyTrackId, spotifyTrackUrl } from "@/lib/spotify";
 import { fetchTrackMeta, TrackNotFoundError } from "@/lib/spotify-api";
@@ -16,6 +21,10 @@ import type { BoardState } from "@/lib/types";
  *
  * Its job is to tell the paster the two things they need before paying: what
  * song this is, and whether it is already on the tape.
+ *
+ * Public and unauthenticated, and each hit can cost up to three outbound
+ * Spotify requests against a quota that is ours rather than the caller's — so
+ * it is the one route here that carries a per-caller ceiling.
  */
 
 /**
@@ -54,6 +63,24 @@ async function boardOrEmpty(): Promise<BoardState> {
 }
 
 export async function GET(request: Request) {
+  // Counted before the query is even read: the point is to spend as little as
+  // possible on a caller who has already had their share of this minute.
+  const allowance = await hit(
+    "track",
+    request,
+    TRACK_LOOKUP_LIMIT,
+    TRACK_LOOKUP_WINDOW_SEC,
+  );
+  if (!allowance.ok) {
+    return NextResponse.json(
+      { error: "Too many lookups from here. Give it a moment and try again." },
+      {
+        status: 429,
+        headers: { "Retry-After": String(allowance.retryAfterSec) },
+      },
+    );
+  }
+
   const { searchParams } = new URL(request.url);
   const q =
     searchParams.get("url") ||
