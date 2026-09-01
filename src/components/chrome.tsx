@@ -4,7 +4,12 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Logo } from "@/components/logo";
 import { formatInt } from "@/lib/format";
-import { PAYMENT_PROVIDER, SITE_NAME } from "@/lib/site";
+import {
+  PAYMENT_PROVIDER,
+  PRODUCT_HUNT_BADGE,
+  PRODUCT_HUNT_URL,
+  SITE_NAME,
+} from "@/lib/site";
 import { useVisitorStats } from "@/lib/visitor-stats";
 
 const NAV = [
@@ -91,6 +96,32 @@ export function SiteFooter() {
             ))}
           </div>
         </div>
+
+        {/*
+          Product Hunt's own badge, linking to our listing. Width and height are
+          the dimensions Product Hunt serves it at, given so the footer does not
+          shift when a third-party image arrives late; lazy, because nobody
+          scrolls this far before the tape has loaded. Sized in rem so it
+          follows the page rather than fighting it.
+        */}
+        <a
+          href={PRODUCT_HUNT_URL}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="block w-fit"
+          title={`${SITE_NAME} on Product Hunt`}
+        >
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={PRODUCT_HUNT_BADGE}
+            alt={`${SITE_NAME} on Product Hunt`}
+            width={250}
+            height={54}
+            loading="lazy"
+            style={{ width: "15.625rem", height: "3.375rem" }}
+          />
+        </a>
+
         <div className="stamp">
           <b>not affiliated with spotify</b>
           Independent fan project · no connection to Spotify AB
