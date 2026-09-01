@@ -5,6 +5,9 @@ import { usePathname } from "next/navigation";
 import { Logo } from "@/components/logo";
 import { formatInt } from "@/lib/format";
 import {
+  MAKER_LOCATION,
+  MAKER_NAME,
+  MAKER_URL,
   PAYMENT_PROVIDER,
   PRODUCT_HUNT_BADGE,
   PRODUCT_HUNT_URL,
@@ -121,6 +124,33 @@ export function SiteFooter() {
             style={{ width: "15.625rem", height: "3.375rem" }}
           />
         </a>
+
+        {/*
+          Who made it and what it came from, on the page and not only in the
+          structured data. A Person node naming an author the page never names,
+          or a claimed influence it never credits, is the kind of mismatch that
+          makes structured data worth less than nothing.
+        */}
+        <p className="text-xs chrome">
+          Made in {MAKER_LOCATION} by{" "}
+          <a
+            href={MAKER_URL}
+            target="_blank"
+            rel="author noopener noreferrer"
+            className="tie"
+          >
+            {MAKER_NAME}
+          </a>
+          {" · pricing mechanic based on "}
+          <a
+            href="https://outbid.lol"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="tie"
+          >
+            outbid.lol
+          </a>
+        </p>
 
         <div className="stamp">
           <b>not affiliated with spotify</b>
